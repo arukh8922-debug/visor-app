@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount, useConnect, useDisconnect, useBalance, useSwitchChain, useChainId } from 'wagmi';
 import { truncateAddress } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { CHAIN_ID } from '@/lib/config';
+import { getFarcasterUserByAddress, type FarcasterUser } from '@/lib/farcaster';
 
 // Wallet icons
 const WalletIcons: Record<string, string> = {
@@ -35,8 +36,18 @@ export function ConnectButton() {
   const { data: balance } = useBalance({ address });
   const [showDropdown, setShowDropdown] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [farcasterUser, setFarcasterUser] = useState<FarcasterUser | null>(null);
 
   const isWrongNetwork = isConnected && chainId !== CHAIN_ID;
+
+  // Fetch Farcaster user data when connected
+  useEffect(() => {
+    if (address) {
+      getFarcasterUserByAddress(address).then(setFarcasterUser);
+    } else {
+      setFarcasterUser(null);
+    }
+  }, [address]);
 
   if (isConnected && address) {
     // Wrong network warning
@@ -66,8 +77,20 @@ export function ConnectButton() {
             'rounded-xl text-sm font-medium transition-colors'
           )}
         >
-          <div className="w-2 h-2 rounded-full bg-green-500" />
-          <span className="text-white">{truncateAddress(address)}</span>
+          {/* PFP or green dot */}
+          {farcasterUser?.pfpUrl ? (
+            <img 
+              src={farcasterUser.pfpUrl} 
+              alt={farcasterUser.username}
+              className="w-6 h-6 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+          )}
+          {/* Username or address */}
+          <span className="text-white">
+            {farcasterUser?.username ? `@${farcasterUser.username}` : truncateAddress(address)}
+          </span>
         </button>
 
         {showDropdown && (
@@ -77,15 +100,41 @@ export function ConnectButton() {
               onClick={() => setShowDropdown(false)}
             />
             <div className="absolute right-0 top-full mt-2 w-64 z-50 bg-[#111111] border border-[#333333] rounded-xl shadow-lg overflow-hidden animate-scaleIn">
-              {/* Address */}
+              {/* User Info */}
               <div className="p-4 border-b border-[#333333]">
-                <p className="text-xs text-[#666666] mb-1">Connected Wallet</p>
-                <p className="text-sm text-white font-mono break-all">{address}</p>
+                {farcasterUser ? (
+                  <div className="flex items-center gap-3">
+                    {farcasterUser.pfpUrl && (
+                      <img 
+                        src={farcasterUser.pfpUrl} 
+                        alt={farcasterUser.username}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-white">{farcasterUser.displayName}</p>
+                      <p className="text-xs text-[#666666]">@{farcasterUser.username}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs text-[#666666] mb-1">Connected Wallet</p>
+                    <p className="text-sm text-white font-mono break-all">{address}</p>
+                  </>
+                )}
               </div>
+
+              {/* Address (if Farcaster user) */}
+              {farcasterUser && (
+                <div className="px-4 py-3 border-b border-[#333333]">
+                  <p className="text-xs text-[#666666] mb-1">Wallet</p>
+                  <p className="text-xs text-white font-mono">{truncateAddress(address, 8)}</p>
+                </div>
+              )}
 
               {/* Balance */}
               {balance && (
-                <div className="p-4 border-b border-[#333333]">
+                <div className="px-4 py-3 border-b border-[#333333]">
                   <p className="text-xs text-[#666666] mb-1">Balance</p>
                   <p className="text-sm text-white">
                     {parseFloat(balance.formatted).toFixed(4)} {balance.symbol}
