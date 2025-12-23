@@ -1,9 +1,10 @@
 /**
  * Farcaster User Data Utilities
- * Fetch user info from Neynar API
+ * Uses Pinata Hub API (free, no API key required)
  */
 
-const NEYNAR_API_KEY = process.env.NEXT_PUBLIC_NEYNAR_API_KEY || '';
+// Pinata Hub API - Free, no API key required
+const PINATA_HUB_URL = 'https://hub.pinata.cloud/v1';
 
 export interface FarcasterUser {
   fid: number;
@@ -18,13 +19,11 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const cacheTimestamps = new Map<string, number>();
 
 /**
- * Get Farcaster user by wallet address
+ * Get Farcaster user by wallet address using Pinata Hub API
  */
 export async function getFarcasterUserByAddress(
   address: string
 ): Promise<FarcasterUser | null> {
-  if (!NEYNAR_API_KEY) return null;
-
   const cacheKey = address.toLowerCase();
 
   // Check cache
@@ -35,41 +34,33 @@ export async function getFarcasterUserByAddress(
   }
 
   try {
-    const response = await fetch(
-      `https://api.neynar.com/v2/farcaster/user/by_verification?address=${address}`,
-      {
-        headers: {
-          api_key: NEYNAR_API_KEY,
-        },
-      }
+    // First get FID from address verification
+    const verifyResponse = await fetch(
+      `${PINATA_HUB_URL}/verificationsByAddress?address=${address.toLowerCase()}`
     );
 
-    if (!response.ok) {
+    if (!verifyResponse.ok) {
       userCache.set(cacheKey, null);
       cacheTimestamps.set(cacheKey, Date.now());
       return null;
     }
 
-    const data = await response.json();
-    const user = data.user;
+    const verifyData = await verifyResponse.json();
+    const fid = verifyData.messages?.[0]?.data?.fid;
 
-    if (!user) {
+    if (!fid) {
       userCache.set(cacheKey, null);
       cacheTimestamps.set(cacheKey, Date.now());
       return null;
     }
 
-    const farcasterUser: FarcasterUser = {
-      fid: user.fid,
-      username: user.username || '',
-      displayName: user.display_name || user.username || '',
-      pfpUrl: user.pfp_url || '',
-    };
-
-    userCache.set(cacheKey, farcasterUser);
+    // Then get user data by FID
+    const user = await getFarcasterUserByFid(fid);
+    
+    userCache.set(cacheKey, user);
     cacheTimestamps.set(cacheKey, Date.now());
 
-    return farcasterUser;
+    return user;
   } catch (error) {
     console.error('Failed to fetch Farcaster user:', error);
     return null;
@@ -85,8 +76,7 @@ export async function getFarcasterUsersByAddresses(
 ): Promise<Map<string, FarcasterUser | null>> {
   const result = new Map<string, FarcasterUser | null>();
 
-  if (!NEYNAR_API_KEY || addresses.length === 0) {
-    addresses.forEach((addr) => result.set(addr.toLowerCase(), null));
+  if (addresses.length === 0) {
     return result;
   }
 
@@ -120,35 +110,50 @@ export async function getFarcasterUsersByAddresses(
 }
 
 /**
- * Get Farcaster user by FID
+ * Get Farcaster user by FID using Pinata Hub API
  */
 export async function getFarcasterUserByFid(
   fid: number
 ): Promise<FarcasterUser | null> {
-  if (!NEYNAR_API_KEY) return null;
-
   try {
     const response = await fetch(
-      `https://api.neynar.com/v2/farcaster/user/bulk?fids=${fid}`,
-      {
-        headers: {
-          api_key: NEYNAR_API_KEY,
-        },
-      }
+      `${PINATA_HUB_URL}/userDataByFid?fid=${fid}`
     );
 
     if (!response.ok) return null;
 
     const data = await response.json();
-    const user = data.users?.[0];
+    const messages = data.messages || [];
 
-    if (!user) return null;
+    // Parse user data from messages
+    let username = '';
+    let displayName = '';
+    let pfpUrl = '';
+
+    for (const msg of messages) {
+      const userDataBody = msg.data?.userDataBody;
+      if (!userDataBody) continue;
+
+      switch (userDataBody.type) {
+        case 'USER_DATA_TYPE_USERNAME':
+          username = userDataBody.value || '';
+          break;
+        case 'USER_DATA_TYPE_DISPLAY':
+          displayName = userDataBody.value || '';
+          break;
+        case 'USER_DATA_TYPE_PFP':
+          pfpUrl = userDataBody.value || '';
+          break;
+      }
+    }
+
+    if (!username && !displayName) return null;
 
     return {
-      fid: user.fid,
-      username: user.username || '',
-      displayName: user.display_name || user.username || '',
-      pfpUrl: user.pfp_url || '',
+      fid,
+      username,
+      displayName: displayName || username,
+      pfpUrl,
     };
   } catch (error) {
     console.error('Failed to fetch Farcaster user by FID:', error);

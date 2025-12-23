@@ -6,7 +6,7 @@
 import { createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
 
-export const VISOR_NFT_ADDRESS = process.env.NEXT_PUBLIC_VISOR_NFT_ADDRESS || '0x2cc716f614db19252cc4a6b54313b8f5162956fb';
+export const VISOR_NFT_ADDRESS = process.env.NEXT_PUBLIC_VISOR_NFT_ADDRESS_MAINNET || '0x2cc716f614db19252cc4a6b54313b8f5162956fb';
 
 // ERC-1155 ABI (minimal for balance check)
 const ERC1155_ABI = [

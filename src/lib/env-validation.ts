@@ -18,14 +18,13 @@ const ENV_VARS: EnvConfig[] = [
   // App
   { name: 'NEXT_PUBLIC_APP_URL', required: true, isPublic: true },
   
-  // Farcaster
-  { name: 'NEXT_PUBLIC_NEYNAR_API_KEY', required: true, isPublic: true },
+  // Farcaster (using Pinata Hub API - no API key required)
   { name: 'NEXT_PUBLIC_CREATOR_FID_1', required: true, isPublic: true },
   { name: 'NEXT_PUBLIC_CREATOR_FID_2', required: true, isPublic: true },
   
   // NFT
   { name: 'NEXT_PUBLIC_VISOR_NFT_SYMBOL', required: true, isPublic: true },
-  { name: 'NEXT_PUBLIC_VISOR_NFT_ADDRESS', required: true, isPublic: true },
+  { name: 'NEXT_PUBLIC_VISOR_NFT_ADDRESS_MAINNET', required: true, isPublic: true },
   
   // Points
   { name: 'NEXT_PUBLIC_POINTS_PER_MINT', required: false, isPublic: true },

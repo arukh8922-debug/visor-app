@@ -1,11 +1,14 @@
 /**
  * Whitelist verification logic
+ * Uses Pinata Hub API (free, no API key required)
  * Checks if user follows required FIDs and has casted about Visor
  */
 
 const CREATOR_FID_1 = process.env.NEXT_PUBLIC_CREATOR_FID_1 || '250704';
 const CREATOR_FID_2 = process.env.NEXT_PUBLIC_CREATOR_FID_2 || '1043335';
-const NEYNAR_API_KEY = process.env.NEXT_PUBLIC_NEYNAR_API_KEY || '';
+
+// Pinata Hub API - Free, no API key required
+const PINATA_HUB_URL = 'https://hub.pinata.cloud/v1';
 
 export interface WhitelistRequirements {
   followsCreator1: boolean;
@@ -64,28 +67,20 @@ export async function checkWhitelistStatus(address: string): Promise<WhitelistRe
 }
 
 /**
- * Get FID from wallet address using Neynar API
+ * Get FID from wallet address using Pinata Hub API
  */
 async function getFidFromAddress(address: string): Promise<number | null> {
-  if (!NEYNAR_API_KEY) {
-    console.warn('Neynar API key not configured');
-    return null;
-  }
-
   try {
+    // Pinata Hub uses verificationsByAddress endpoint
     const response = await fetch(
-      `https://api.neynar.com/v2/farcaster/user/by_verification?address=${address}`,
-      {
-        headers: {
-          'api_key': NEYNAR_API_KEY,
-        },
-      }
+      `${PINATA_HUB_URL}/verificationsByAddress?address=${address.toLowerCase()}`
     );
 
     if (!response.ok) return null;
 
     const data = await response.json();
-    return data.user?.fid || null;
+    // Get FID from first verification message
+    return data.messages?.[0]?.data?.fid || null;
   } catch (error) {
     console.error('Failed to get FID:', error);
     return null;
@@ -93,26 +88,24 @@ async function getFidFromAddress(address: string): Promise<number | null> {
 }
 
 /**
- * Check if user follows a specific FID
+ * Check if user follows a specific FID using Pinata Hub API
  */
 async function checkFollows(userFid: number, targetFid: number): Promise<boolean> {
-  if (!NEYNAR_API_KEY) return false;
-
   try {
+    // Get all links (follows) by user
     const response = await fetch(
-      `https://api.neynar.com/v2/farcaster/user/bulk?fids=${userFid}&viewer_fid=${targetFid}`,
-      {
-        headers: {
-          'api_key': NEYNAR_API_KEY,
-        },
-      }
+      `${PINATA_HUB_URL}/linksByFid?fid=${userFid}&link_type=follow`
     );
 
     if (!response.ok) return false;
 
     const data = await response.json();
-    // Check if the user follows the target
-    return data.users?.[0]?.viewer_context?.following || false;
+    const links = data.messages || [];
+    
+    // Check if any link targets the creator FID
+    return links.some((link: { data?: { linkBody?: { targetFid?: number } } }) => 
+      link.data?.linkBody?.targetFid === targetFid
+    );
   } catch (error) {
     console.error('Failed to check follows:', error);
     return false;
@@ -120,30 +113,25 @@ async function checkFollows(userFid: number, targetFid: number): Promise<boolean
 }
 
 /**
- * Check if user has casted about Visor
+ * Check if user has casted about Visor using Pinata Hub API
  */
 async function checkVisorCast(userFid: number): Promise<boolean> {
-  if (!NEYNAR_API_KEY) return false;
-
   try {
+    // Get user's casts
     const response = await fetch(
-      `https://api.neynar.com/v2/farcaster/feed/user/${userFid}/casts?limit=100`,
-      {
-        headers: {
-          'api_key': NEYNAR_API_KEY,
-        },
-      }
+      `${PINATA_HUB_URL}/castsByFid?fid=${userFid}&pageSize=100`
     );
 
     if (!response.ok) return false;
 
     const data = await response.json();
-    const casts = data.casts || [];
+    const casts = data.messages || [];
     
     // Check if any cast mentions "visor" (case insensitive)
-    return casts.some((cast: { text: string }) => 
-      cast.text.toLowerCase().includes('visor')
-    );
+    return casts.some((cast: { data?: { castAddBody?: { text?: string } } }) => {
+      const text = cast.data?.castAddBody?.text || '';
+      return text.toLowerCase().includes('visor');
+    });
   } catch (error) {
     console.error('Failed to check casts:', error);
     return false;
@@ -151,33 +139,46 @@ async function checkVisorCast(userFid: number): Promise<boolean> {
 }
 
 /**
- * Fetch user info by FID from Neynar API
+ * Fetch user info by FID from Pinata Hub API
  */
 async function fetchUserByFid(fid: number): Promise<CreatorInfo | null> {
-  if (!NEYNAR_API_KEY) return null;
-
   try {
     const response = await fetch(
-      `https://api.neynar.com/v2/farcaster/user/bulk?fids=${fid}`,
-      {
-        headers: {
-          'api_key': NEYNAR_API_KEY,
-        },
-      }
+      `${PINATA_HUB_URL}/userDataByFid?fid=${fid}`
     );
 
     if (!response.ok) return null;
 
     const data = await response.json();
-    const user = data.users?.[0];
+    const messages = data.messages || [];
     
-    if (!user) return null;
+    // Parse user data from messages
+    let username = '';
+    let displayName = '';
+    let pfpUrl = '';
+    
+    for (const msg of messages) {
+      const userDataBody = msg.data?.userDataBody;
+      if (!userDataBody) continue;
+      
+      switch (userDataBody.type) {
+        case 'USER_DATA_TYPE_USERNAME':
+          username = userDataBody.value || '';
+          break;
+        case 'USER_DATA_TYPE_DISPLAY':
+          displayName = userDataBody.value || '';
+          break;
+        case 'USER_DATA_TYPE_PFP':
+          pfpUrl = userDataBody.value || '';
+          break;
+      }
+    }
 
     return {
-      fid: user.fid,
-      username: user.username || '',
-      displayName: user.display_name || user.username || '',
-      pfpUrl: user.pfp_url || '',
+      fid,
+      username,
+      displayName: displayName || username,
+      pfpUrl,
     };
   } catch (error) {
     console.error('Failed to fetch user by FID:', error);
