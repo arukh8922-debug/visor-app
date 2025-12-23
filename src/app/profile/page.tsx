@@ -9,10 +9,10 @@ import { useUser } from '@/hooks/use-user';
 import { useReferral } from '@/hooks/use-referral';
 import { useNFT } from '@/hooks/use-nft';
 import { useToast } from '@/components/ui/toast';
-import { formatNumber, truncateAddress, getExplorerTxUrl } from '@/lib/utils';
+import { formatNumber, truncateAddress } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fireStreakConfetti, fireSuccessConfetti } from '@/lib/confetti';
-import { sendCheckinTransaction, waitForCheckinConfirmation, getPlatformShortName, detectPlatform } from '@/lib/checkin';
+import { sendCheckinTransaction, waitForCheckinConfirmation, getPlatformShortName } from '@/lib/checkin';
 import type { FarcasterUser } from '@/lib/farcaster';
 
 export default function ProfilePage() {
@@ -49,16 +49,6 @@ export default function ProfilePage() {
     fetchFarcasterUser();
   }, [address]);
 
-export default function ProfilePage() {
-  const { address, isConnected } = useAccount();
-  const { data: walletClient } = useWalletClient();
-  const { user, rank, isLoading: userLoading, refetch: refetchUser } = useUser();
-  const { totalReferrals, pointsEarned, recentReferrals, isLoading: referralLoading } = useReferral();
-  const { balance } = useNFT();
-  const { showToast } = useToast();
-  const [checkingIn, setCheckingIn] = useState(false);
-  const [checkinStatus, setCheckinStatus] = useState<string>('');
-
   // Check if user can check in (last_checkin > 24 hours ago)
   const canCheckIn = () => {
     if (!user?.last_checkin) return true;
@@ -75,7 +65,6 @@ export default function ProfilePage() {
     setCheckinStatus('Sending transaction...');
     
     try {
-      // Step 1: Send onchain transaction (0 ETH to self)
       const { txHash, platform } = await sendCheckinTransaction(
         walletClient,
         address as `0x${string}`
@@ -83,7 +72,6 @@ export default function ProfilePage() {
       
       setCheckinStatus('Waiting for confirmation...');
       
-      // Step 2: Wait for confirmation
       const confirmed = await waitForCheckinConfirmation(txHash);
       
       if (!confirmed) {
@@ -94,7 +82,6 @@ export default function ProfilePage() {
       
       setCheckinStatus('Recording checkin...');
       
-      // Step 3: Call API to record checkin
       const res = await fetch('/api/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,7 +103,6 @@ export default function ProfilePage() {
         return;
       }
       
-      // Success with confetti
       if (data.bonus_awarded) {
         fireStreakConfetti();
         showToast(`🎉 +${data.points_awarded} points! 7-day streak bonus!`, 'success');
@@ -125,7 +111,6 @@ export default function ProfilePage() {
         showToast(`✅ +${data.points_awarded} points! Streak: ${data.streak} days`, 'success');
       }
       
-      // Refresh user data
       refetchUser();
     } catch (error: any) {
       console.error('Checkin error:', error);
@@ -157,7 +142,6 @@ export default function ProfilePage() {
       {/* Profile Header */}
       <Card variant="elevated">
         <div className="flex items-center gap-4">
-          {/* Avatar */}
           {loadingFarcaster ? (
             <Skeleton className="w-16 h-16 rounded-full" />
           ) : farcasterUser?.pfpUrl ? (
@@ -172,7 +156,6 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* Info */}
           <div className="flex-1">
             {loadingFarcaster ? (
               <Skeleton className="h-5 w-32 mb-1" />
@@ -203,21 +186,9 @@ export default function ProfilePage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-3 gap-3">
-        <StatCard
-          label="Points"
-          value={user?.points || 0}
-          loading={userLoading}
-        />
-        <StatCard
-          label="NFTs"
-          value={balance}
-          loading={userLoading}
-        />
-        <StatCard
-          label="Referrals"
-          value={totalReferrals}
-          loading={referralLoading}
-        />
+        <StatCard label="Points" value={user?.points || 0} loading={userLoading} />
+        <StatCard label="NFTs" value={balance} loading={userLoading} />
+        <StatCard label="Referrals" value={totalReferrals} loading={referralLoading} />
       </div>
 
       {/* Daily Check-in Card */}
