@@ -1,10 +1,10 @@
 /**
  * Farcaster User Data Utilities
- * Uses Pinata Hub API (free, no API key required)
+ * Uses Neynar API (free tier available)
  */
 
-// Pinata Hub API - Free, no API key required
-const PINATA_HUB_URL = 'https://hub.pinata.cloud/v1';
+const NEYNAR_API_URL = 'https://api.neynar.com/v2/farcaster';
+const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY || '';
 
 export interface FarcasterUser {
   fid: number;
@@ -19,7 +19,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const cacheTimestamps = new Map<string, number>();
 
 /**
- * Get Farcaster user by wallet address using Pinata Hub API
+ * Get Farcaster user by wallet address using Neynar API
  */
 export async function getFarcasterUserByAddress(
   address: string
@@ -34,28 +34,41 @@ export async function getFarcasterUserByAddress(
   }
 
   try {
-    // First get FID from address verification
-    const verifyResponse = await fetch(
-      `${PINATA_HUB_URL}/verificationsByAddress?address=${address.toLowerCase()}`
+    // Neynar bulk-by-address endpoint
+    const response = await fetch(
+      `${NEYNAR_API_URL}/user/bulk-by-address?addresses=${address.toLowerCase()}`,
+      {
+        headers: {
+          'accept': 'application/json',
+          'x-api-key': NEYNAR_API_KEY,
+        },
+      }
     );
 
-    if (!verifyResponse.ok) {
+    if (!response.ok) {
       userCache.set(cacheKey, null);
       cacheTimestamps.set(cacheKey, Date.now());
       return null;
     }
 
-    const verifyData = await verifyResponse.json();
-    const fid = verifyData.messages?.[0]?.data?.fid;
-
-    if (!fid) {
+    const data = await response.json();
+    // Response format: { [address]: [user1, user2, ...] }
+    const users = data[address.toLowerCase()];
+    
+    if (!users || users.length === 0) {
       userCache.set(cacheKey, null);
       cacheTimestamps.set(cacheKey, Date.now());
       return null;
     }
 
-    // Then get user data by FID
-    const user = await getFarcasterUserByFid(fid);
+    // Take the first user (primary account)
+    const neynarUser = users[0];
+    const user: FarcasterUser = {
+      fid: neynarUser.fid,
+      username: neynarUser.username || '',
+      displayName: neynarUser.display_name || neynarUser.username || '',
+      pfpUrl: neynarUser.pfp_url || '',
+    };
     
     userCache.set(cacheKey, user);
     cacheTimestamps.set(cacheKey, Date.now());
@@ -69,7 +82,7 @@ export async function getFarcasterUserByAddress(
 
 /**
  * Get Farcaster users by multiple wallet addresses (batch)
- * Returns a map of address -> FarcasterUser
+ * Neynar supports up to 350 addresses per request
  */
 export async function getFarcasterUsersByAddresses(
   addresses: string[]
@@ -94,66 +107,96 @@ export async function getFarcasterUsersByAddresses(
     }
   }
 
-  // Fetch uncached addresses in parallel (max 10 concurrent)
-  const batchSize = 10;
+  if (uncachedAddresses.length === 0) {
+    return result;
+  }
+
+  // Neynar supports up to 350 addresses per request
+  const batchSize = 350;
   for (let i = 0; i < uncachedAddresses.length; i += batchSize) {
     const batch = uncachedAddresses.slice(i, i + batchSize);
-    const promises = batch.map((addr) => getFarcasterUserByAddress(addr));
-    const results = await Promise.all(promises);
+    const addressList = batch.map(a => a.toLowerCase()).join(',');
 
-    batch.forEach((addr, index) => {
-      result.set(addr.toLowerCase(), results[index]);
-    });
+    try {
+      const response = await fetch(
+        `${NEYNAR_API_URL}/user/bulk-by-address?addresses=${addressList}`,
+        {
+          headers: {
+            'accept': 'application/json',
+            'x-api-key': NEYNAR_API_KEY,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        for (const addr of batch) {
+          const key = addr.toLowerCase();
+          const users = data[key];
+          
+          if (users && users.length > 0) {
+            const neynarUser = users[0];
+            const user: FarcasterUser = {
+              fid: neynarUser.fid,
+              username: neynarUser.username || '',
+              displayName: neynarUser.display_name || neynarUser.username || '',
+              pfpUrl: neynarUser.pfp_url || '',
+            };
+            result.set(key, user);
+            userCache.set(key, user);
+          } else {
+            result.set(key, null);
+            userCache.set(key, null);
+          }
+          cacheTimestamps.set(key, Date.now());
+        }
+      }
+    } catch (error) {
+      console.error('Failed to batch fetch Farcaster users:', error);
+      // Set null for failed addresses
+      for (const addr of batch) {
+        const key = addr.toLowerCase();
+        result.set(key, null);
+        userCache.set(key, null);
+        cacheTimestamps.set(key, Date.now());
+      }
+    }
   }
 
   return result;
 }
 
 /**
- * Get Farcaster user by FID using Pinata Hub API
+ * Get Farcaster user by FID using Neynar API
  */
 export async function getFarcasterUserByFid(
   fid: number
 ): Promise<FarcasterUser | null> {
   try {
     const response = await fetch(
-      `${PINATA_HUB_URL}/userDataByFid?fid=${fid}`
+      `${NEYNAR_API_URL}/user/bulk?fids=${fid}`,
+      {
+        headers: {
+          'accept': 'application/json',
+          'x-api-key': NEYNAR_API_KEY,
+        },
+      }
     );
 
     if (!response.ok) return null;
 
     const data = await response.json();
-    const messages = data.messages || [];
+    const users = data.users;
 
-    // Parse user data from messages
-    let username = '';
-    let displayName = '';
-    let pfpUrl = '';
+    if (!users || users.length === 0) return null;
 
-    for (const msg of messages) {
-      const userDataBody = msg.data?.userDataBody;
-      if (!userDataBody) continue;
-
-      switch (userDataBody.type) {
-        case 'USER_DATA_TYPE_USERNAME':
-          username = userDataBody.value || '';
-          break;
-        case 'USER_DATA_TYPE_DISPLAY':
-          displayName = userDataBody.value || '';
-          break;
-        case 'USER_DATA_TYPE_PFP':
-          pfpUrl = userDataBody.value || '';
-          break;
-      }
-    }
-
-    if (!username && !displayName) return null;
-
+    const neynarUser = users[0];
     return {
-      fid,
-      username,
-      displayName: displayName || username,
-      pfpUrl,
+      fid: neynarUser.fid,
+      username: neynarUser.username || '',
+      displayName: neynarUser.display_name || neynarUser.username || '',
+      pfpUrl: neynarUser.pfp_url || '',
     };
   } catch (error) {
     console.error('Failed to fetch Farcaster user by FID:', error);

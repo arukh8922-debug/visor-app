@@ -18,7 +18,8 @@ const ENV_VARS: EnvConfig[] = [
   // App
   { name: 'NEXT_PUBLIC_APP_URL', required: true, isPublic: true },
   
-  // Farcaster (using Pinata Hub API - no API key required)
+  // Farcaster
+  { name: 'NEYNAR_API_KEY', required: true, isPublic: false }, // For user profile lookup
   { name: 'NEXT_PUBLIC_CREATOR_FID_1', required: true, isPublic: true },
   { name: 'NEXT_PUBLIC_CREATOR_FID_2', required: true, isPublic: true },
   

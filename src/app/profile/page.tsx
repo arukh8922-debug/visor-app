@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount, useWalletClient } from 'wagmi';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,41 @@ import { formatNumber, truncateAddress, getExplorerTxUrl } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fireStreakConfetti, fireSuccessConfetti } from '@/lib/confetti';
 import { sendCheckinTransaction, waitForCheckinConfirmation, getPlatformShortName, detectPlatform } from '@/lib/checkin';
+import type { FarcasterUser } from '@/lib/farcaster';
+
+export default function ProfilePage() {
+  const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const { user, rank, isLoading: userLoading, refetch: refetchUser } = useUser();
+  const { totalReferrals, pointsEarned, recentReferrals, isLoading: referralLoading } = useReferral();
+  const { balance } = useNFT();
+  const { showToast } = useToast();
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkinStatus, setCheckinStatus] = useState<string>('');
+  const [farcasterUser, setFarcasterUser] = useState<FarcasterUser | null>(null);
+  const [loadingFarcaster, setLoadingFarcaster] = useState(false);
+
+  // Fetch Farcaster user data
+  useEffect(() => {
+    async function fetchFarcasterUser() {
+      if (!address) return;
+      
+      setLoadingFarcaster(true);
+      try {
+        const res = await fetch(`/api/farcaster/user?address=${address}`);
+        if (res.ok) {
+          const data = await res.json();
+          setFarcasterUser(data.user);
+        }
+      } catch (error) {
+        console.error('Failed to fetch Farcaster user:', error);
+      } finally {
+        setLoadingFarcaster(false);
+      }
+    }
+    
+    fetchFarcasterUser();
+  }, [address]);
 
 export default function ProfilePage() {
   const { address, isConnected } = useAccount();
@@ -123,15 +158,38 @@ export default function ProfilePage() {
       <Card variant="elevated">
         <div className="flex items-center gap-4">
           {/* Avatar */}
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#333333] to-[#111111] flex items-center justify-center">
-            <span className="text-2xl">👤</span>
-          </div>
+          {loadingFarcaster ? (
+            <Skeleton className="w-16 h-16 rounded-full" />
+          ) : farcasterUser?.pfpUrl ? (
+            <img 
+              src={farcasterUser.pfpUrl} 
+              alt={farcasterUser.username}
+              className="w-16 h-16 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#333333] to-[#111111] flex items-center justify-center">
+              <span className="text-2xl">👤</span>
+            </div>
+          )}
 
           {/* Info */}
           <div className="flex-1">
-            <p className="text-lg font-semibold text-white font-mono">
-              {truncateAddress(address, 6)}
-            </p>
+            {loadingFarcaster ? (
+              <Skeleton className="h-5 w-32 mb-1" />
+            ) : farcasterUser ? (
+              <>
+                <p className="text-lg font-semibold text-white">
+                  {farcasterUser.displayName}
+                </p>
+                <p className="text-sm text-[#a0a0a0]">
+                  @{farcasterUser.username}
+                </p>
+              </>
+            ) : (
+              <p className="text-lg font-semibold text-white font-mono">
+                {truncateAddress(address, 6)}
+              </p>
+            )}
             {userLoading ? (
               <Skeleton className="h-4 w-24 mt-1" />
             ) : (
