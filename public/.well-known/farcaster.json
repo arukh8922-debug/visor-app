@@ -1,0 +1,39 @@
+{
+  "accountAssociation": {
+    "header": "",
+    "payload": "",
+    "signature": ""
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "Visor",
+    "iconUrl": "https://visor-app.vercel.app/icon.jpg",
+    "homeUrl": "https://visor-app.vercel.app",
+    "buttonTitle": "🔭 Open Visor",
+    "splashImageUrl": "https://visor-app.vercel.app/splash.jpg",
+    "splashBackgroundColor": "#0a0a0a",
+    "subtitle": "NFT Points Farming",
+    "description": "Mint Visor NFT, earn points through referrals and daily activity, and qualify for future airdrops on Base.",
+    "primaryCategory": "games",
+    "tags": [
+      "nft",
+      "points",
+      "airdrop",
+      "farming",
+      "base"
+    ],
+    "requiredChains": [
+      "eip155:8453"
+    ],
+    "requiredCapabilities": [
+      "wallet.getEthereumProvider"
+    ],
+    "imageUrl": "https://visor-app.vercel.app/icon.jpg",
+    "ogImageUrl": "https://visor-app.vercel.app/og-image.jpg",
+    "heroImageUrl": "https://visor-app.vercel.app/heroimage.jpg",
+    "screenshotUrls": [
+      "https://visor-app.vercel.app/heroimage.jpg"
+    ],
+    "webhookUrl": "https://visor-app.vercel.app/api/webhook"
+  }
+}
