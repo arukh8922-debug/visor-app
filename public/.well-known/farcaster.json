@@ -1,16 +1,16 @@
 {
   "accountAssociation": {
-    "header": "",
-    "payload": "",
-    "signature": ""
+    "header": "eyJmaWQiOjI1MDcwNCwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDA5RDAyRDI1RDBEMDgyZjdGMkUwNGI0ODM4Y0VmZTI3MWIyZGFCMDkifQ",
+    "payload": "eyJkb21haW4iOiJ2aXNvci1hcHAtb3BhbC52ZXJjZWwuYXBwIn0",
+    "signature": "FkvPzP5Aobl2Bxw1WABj+r0HqRny5tEk8ROnQeEntEZ3eOFWSBwf7V8T5Wjk8c2ZyDzprxpfAqphJfWiWZoBxhs="
   },
   "miniapp": {
     "version": "1",
     "name": "Visor",
-    "iconUrl": "https://visor-app.vercel.app/icon.jpg",
-    "homeUrl": "https://visor-app.vercel.app",
+    "iconUrl": "https://visor-app-opal.vercel.app/icon.jpg",
+    "homeUrl": "https://visor-app-opal.vercel.app",
     "buttonTitle": "🔭 Open Visor",
-    "splashImageUrl": "https://visor-app.vercel.app/splash.jpg",
+    "splashImageUrl": "https://visor-app-opal.vercel.app/splash.jpg",
     "splashBackgroundColor": "#0a0a0a",
     "subtitle": "NFT Points Farming",
     "description": "Mint Visor NFT, earn points through referrals and daily activity, and qualify for future airdrops on Base.",
@@ -28,12 +28,12 @@
     "requiredCapabilities": [
       "wallet.getEthereumProvider"
     ],
-    "imageUrl": "https://visor-app.vercel.app/icon.jpg",
-    "ogImageUrl": "https://visor-app.vercel.app/og-image.jpg",
-    "heroImageUrl": "https://visor-app.vercel.app/heroimage.jpg",
+    "imageUrl": "https://visor-app-opal.vercel.app/icon.jpg",
+    "ogImageUrl": "https://visor-app-opal.vercel.app/og-image.jpg",
+    "heroImageUrl": "https://visor-app-opal.vercel.app/heroimage.jpg",
     "screenshotUrls": [
-      "https://visor-app.vercel.app/heroimage.jpg"
+      "https://visor-app-opal.vercel.app/heroimage.jpg"
     ],
-    "webhookUrl": "https://visor-app.vercel.app/api/webhook"
+    "webhookUrl": "https://visor-app-opal.vercel.app/api/webhook"
   }
 }
