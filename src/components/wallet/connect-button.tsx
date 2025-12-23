@@ -5,7 +5,7 @@ import { useAccount, useConnect, useDisconnect, useBalance, useSwitchChain, useC
 import { truncateAddress } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { CHAIN_ID } from '@/lib/config';
-import { getFarcasterUserByAddress, type FarcasterUser } from '@/lib/farcaster';
+import type { FarcasterUser } from '@/lib/farcaster';
 
 // Wallet icons
 const WalletIcons: Record<string, string> = {
@@ -40,13 +40,29 @@ export function ConnectButton() {
 
   const isWrongNetwork = isConnected && chainId !== CHAIN_ID;
 
-  // Fetch Farcaster user data when connected
+  // Fetch Farcaster user data via API route (server-side has API key)
   useEffect(() => {
-    if (address) {
-      getFarcasterUserByAddress(address).then(setFarcasterUser);
-    } else {
-      setFarcasterUser(null);
+    async function fetchFarcasterUser() {
+      if (!address) {
+        setFarcasterUser(null);
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/farcaster/user?address=${address}`);
+        if (res.ok) {
+          const data = await res.json();
+          setFarcasterUser(data.user);
+        } else {
+          setFarcasterUser(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch Farcaster user:', error);
+        setFarcasterUser(null);
+      }
     }
+    
+    fetchFarcasterUser();
   }, [address]);
 
   if (isConnected && address) {
