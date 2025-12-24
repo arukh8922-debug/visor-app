@@ -216,12 +216,6 @@ export default function ProfilePage() {
         <p className="text-xs text-[#666666]">
           Check in daily to earn 500 points. 7-day streak = 500 bonus!
         </p>
-        <p className="text-xs text-[#444444] mt-1">
-          {areFeeRecipientsConfigured() 
-            ? `💰 Check-in fee: ~$0.03 (${CHECKIN_FEE_ETH} ETH)`
-            : '⛽ Requires small gas fee (~$0.001)'
-          }
-        </p>
         {user?.last_checkin && (
           <p className="text-xs text-[#444444] mt-1">
             Last check-in: {new Date(user.last_checkin).toLocaleDateString()}
