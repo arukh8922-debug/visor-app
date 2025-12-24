@@ -34,10 +34,8 @@ export function isInFarcasterContext(): boolean {
       return true;
     }
     
-    // Check for SDK context
-    if (sdk && sdk.context) {
-      return true;
-    }
+    // Check for SDK context - sdk.context is always defined but may be a pending promise
+    // We check if we're likely in Farcaster by other means
     
     // Check URL params (Farcaster adds these)
     const url = new URL(window.location.href);
