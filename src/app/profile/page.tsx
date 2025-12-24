@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/toast';
 import { formatNumber, truncateAddress } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fireStreakConfetti, fireSuccessConfetti } from '@/lib/confetti';
-import { sendCheckinTransaction, waitForCheckinConfirmation, getPlatformShortName, areFeeRecipientsConfigured, CHECKIN_FEE_ETH } from '@/lib/checkin';
+import { sendCheckinTransaction, waitForCheckinConfirmation, getPlatformShortName } from '@/lib/checkin';
 import type { FarcasterUser } from '@/lib/farcaster';
 
 export default function ProfilePage() {

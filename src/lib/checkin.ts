@@ -3,7 +3,7 @@
  * Sends 0.03$ ETH split to 2 recipients for check-in
  */
 
-import { createPublicClient, http, type Hash, parseEther } from 'viem';
+import { createPublicClient, http, type Hash } from 'viem';
 import { base } from 'viem/chains';
 import { detectPlatform, getPlatformShortName, type Platform } from './platform';
 
@@ -11,7 +11,8 @@ import { detectPlatform, getPlatformShortName, type Platform } from './platform'
 export const BASE_BUILDER_CODE = 'bc_gy096wvf';
 
 // Check-in fee configuration
-export const CHECKIN_FEE_ETH = process.env.NEXT_PUBLIC_CHECKIN_FEE_ETH || '0.000012'; // ~$0.03
+// 0.000012 ETH = 12000000000000 wei (12 * 10^12)
+export const CHECKIN_FEE_WEI = BigInt(process.env.NEXT_PUBLIC_CHECKIN_FEE_WEI || '12000000000000');
 export const FEE_RECIPIENT_1 = process.env.NEXT_PUBLIC_FEE_RECIPIENT_1 || '';
 export const FEE_RECIPIENT_2 = process.env.NEXT_PUBLIC_FEE_RECIPIENT_2 || '';
 
@@ -32,15 +33,14 @@ function builderCodeToHex(): string {
  * Get check-in fee amount in wei (split amount per recipient)
  */
 export function getCheckinFeePerRecipient(): bigint {
-  const totalFee = parseEther(CHECKIN_FEE_ETH);
-  return totalFee / BigInt(2); // 50-50 split
+  return CHECKIN_FEE_WEI / BigInt(2); // 50-50 split
 }
 
 /**
  * Get total check-in fee in wei
  */
 export function getTotalCheckinFee(): bigint {
-  return parseEther(CHECKIN_FEE_ETH);
+  return CHECKIN_FEE_WEI;
 }
 
 /**
