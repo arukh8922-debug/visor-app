@@ -41,12 +41,19 @@ export interface ValidationResult {
 
 /**
  * Validate all required environment variables
+ * On client-side (browser), only checks NEXT_PUBLIC_* vars
  */
 export function validateEnv(): ValidationResult {
   const missing: string[] = [];
   const warnings: string[] = [];
+  const isClient = typeof window !== 'undefined';
   
   for (const config of ENV_VARS) {
+    // On client-side, skip non-public env vars (they're not accessible anyway)
+    if (isClient && !config.isPublic) {
+      continue;
+    }
+    
     const value = process.env[config.name];
     
     if (config.required && !value) {
