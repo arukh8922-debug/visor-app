@@ -1,16 +1,16 @@
 /**
  * Whitelist verification logic
- * Uses Pinata Hub API (free, no API key required)
+ * Uses Neynar API for reliable follow checking with viewer_context
  * Checks if user follows required FIDs, has casted about Visor, and added mini app
  */
 
 const CREATOR_FID_1 = process.env.NEXT_PUBLIC_CREATOR_FID_1 || '250704';
 const CREATOR_FID_2 = process.env.NEXT_PUBLIC_CREATOR_FID_2 || '1043335';
 
-// Pinata Hub API - Free, no API key required
+// Pinata Hub API - Free, no API key required (for casts and FID lookup)
 const PINATA_HUB_URL = 'https://hub.pinata.cloud/v1';
 
-// Neynar API for mini app check
+// Neynar API for follow check and mini app check
 const NEYNAR_API_URL = 'https://api.neynar.com/v2/farcaster';
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY || '';
 
@@ -100,9 +100,52 @@ async function getFidFromAddress(address: string): Promise<number | null> {
 }
 
 /**
- * Check if user follows a specific FID using Pinata Hub API
+ * Check if user follows a specific FID using Neynar API with viewer_context
+ * This is more reliable than Pinata Hub API
  */
 async function checkFollows(userFid: number, targetFid: number): Promise<boolean> {
+  try {
+    // Use Neynar API to get target user with viewer_context
+    // viewer_context.following tells us if userFid follows targetFid
+    if (!NEYNAR_API_KEY) {
+      console.warn('NEYNAR_API_KEY not set, falling back to Pinata Hub');
+      return checkFollowsPinata(userFid, targetFid);
+    }
+
+    const response = await fetch(
+      `${NEYNAR_API_URL}/user/bulk?fids=${targetFid}&viewer_fid=${userFid}`,
+      {
+        headers: {
+          'accept': 'application/json',
+          'x-api-key': NEYNAR_API_KEY,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error('Neynar API error:', response.status);
+      return checkFollowsPinata(userFid, targetFid);
+    }
+
+    const data = await response.json();
+    const targetUser = data.users?.[0];
+    
+    if (!targetUser) return false;
+
+    // viewer_context.followed_by means the viewer (userFid) is followed by target
+    // viewer_context.following means the viewer (userFid) follows the target
+    // We want to check if userFid follows targetFid, so we check "following"
+    return targetUser.viewer_context?.following === true;
+  } catch (error) {
+    console.error('Failed to check follows via Neynar:', error);
+    return checkFollowsPinata(userFid, targetFid);
+  }
+}
+
+/**
+ * Fallback: Check if user follows a specific FID using Pinata Hub API
+ */
+async function checkFollowsPinata(userFid: number, targetFid: number): Promise<boolean> {
   try {
     // Get all links (follows) by user
     const response = await fetch(
@@ -119,7 +162,7 @@ async function checkFollows(userFid: number, targetFid: number): Promise<boolean
       link.data?.linkBody?.targetFid === targetFid
     );
   } catch (error) {
-    console.error('Failed to check follows:', error);
+    console.error('Failed to check follows via Pinata:', error);
     return false;
   }
 }

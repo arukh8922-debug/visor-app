@@ -121,6 +121,7 @@ export async function getLeaderboard(limit: number = 50, offset: number = 0): Pr
   const { data, error, count } = await supabase
     .from('users')
     .select('wallet_address, points, nft_count', { count: 'exact' })
+    .gt('points', 0) // Only include users with points > 0
     .order('points', { ascending: false })
     .range(offset, offset + limit - 1);
   
