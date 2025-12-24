@@ -83,6 +83,22 @@ export async function recordMiniAppAdded(address: string): Promise<void> {
 }
 
 /**
+ * Record that user has removed the mini app
+ */
+export async function recordMiniAppRemoved(address: string): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update({ 
+      has_added_miniapp: false, 
+      miniapp_added_at: null,
+      updated_at: new Date().toISOString() 
+    })
+    .eq('wallet_address', address.toLowerCase());
+  
+  if (error) throw error;
+}
+
+/**
  * Set user as VIP (after NFT mint)
  */
 export async function setUserVIP(address: string): Promise<void> {
