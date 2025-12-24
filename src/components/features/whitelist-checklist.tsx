@@ -58,13 +58,14 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
   // Check SDK mini app status on mount and sync with database
   useEffect(() => {
     async function checkAndSyncSdkStatus() {
-      if (isInFarcasterContext() && address) {
+      if (!address) return;
+      
+      // Only check SDK status if in Farcaster context
+      if (isInFarcasterContext()) {
         const added = await hasUserAddedMiniApp();
         setSdkMiniAppAdded(added);
         
         // Sync SDK status with database
-        // If SDK says added but database says not, update database
-        // If SDK says not added but database says added, update database
         if (added && !status?.has_added_miniapp) {
           // User has added mini app but database doesn't know - sync it
           await fetch('/api/miniapp', {
@@ -82,10 +83,13 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
           });
           onRefresh();
         }
+      } else {
+        // Not in Farcaster context - rely on database status only
+        setSdkMiniAppAdded(null);
       }
     }
     checkAndSyncSdkStatus();
-  }, [address, status?.has_added_miniapp]);
+  }, [address, status?.has_added_miniapp, onRefresh]);
 
   // Fire confetti when whitelist complete
   useEffect(() => {

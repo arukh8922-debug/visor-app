@@ -3,18 +3,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAccount } from 'wagmi';
 import * as mintclub from '@/lib/mintclub';
+import { getNFTBalance } from '@/lib/nft';
 import { formatEther } from 'viem';
 
 export function useNFT() {
   const { address, isConnected } = useAccount();
   const queryClient = useQueryClient();
 
-  // NFT Balance
+  // NFT Balance - Use ERC-721 contract directly (new NFT collection)
   const { data: balance, refetch: refetchBalance } = useQuery({
     queryKey: ['nft-balance', address],
     queryFn: async () => {
-      if (!address) return BigInt(0);
-      return await mintclub.getBalance(address);
+      if (!address) return 0;
+      return await getNFTBalance(address);
     },
     enabled: !!address && isConnected,
     staleTime: 10000,
@@ -105,7 +106,7 @@ export function useNFT() {
   });
 
   return {
-    balance: balance ? Number(balance) : 0,
+    balance: balance ?? 0,
     price,
     supply,
     getBuyEstimation,
