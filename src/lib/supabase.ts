@@ -348,3 +348,35 @@ export async function recordNFTMint(address: string, amount: number, txHash: str
   
   return { pointsAdded: totalPoints };
 }
+
+
+/**
+ * Sync NFT balance from blockchain and award points for new mints
+ * Used when user mints on OpenSea and syncs balance in app
+ */
+export async function syncNFTBalance(address: string, newBalance: number, newMints: number): Promise<{ pointsAdded: number }> {
+  // Update NFT count and set VIP status
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({
+      nft_count: newBalance,
+      is_vip: newBalance > 0, // VIP if has any NFT
+      updated_at: new Date().toISOString(),
+    })
+    .eq('wallet_address', address.toLowerCase());
+  
+  if (updateError) {
+    console.error('Failed to update NFT balance:', updateError);
+    throw updateError;
+  }
+  
+  // Add points for new mints (100,000 per mint)
+  const pointsPerMint = 100000;
+  const totalPoints = pointsPerMint * newMints;
+  
+  if (totalPoints > 0) {
+    await addPoints(address, totalPoints, 'nft_mint');
+  }
+  
+  return { pointsAdded: totalPoints };
+}

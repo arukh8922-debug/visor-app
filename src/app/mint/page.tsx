@@ -8,6 +8,7 @@ import { useWhitelist } from '@/hooks/use-whitelist';
 import { useToast } from '@/components/ui/toast';
 import { getNFTBalance, getTotalSupply, VISOR_OPENSEA_URL } from '@/lib/nft';
 import { NFT_OPENSEA_URL } from '@/lib/config';
+import { fireSuccessConfetti } from '@/lib/confetti';
 import Image from 'next/image';
 
 // NFT Image URL from env or default
@@ -21,6 +22,7 @@ export default function MintPage() {
   const [balance, setBalance] = useState(0);
   const [totalSupply, setTotalSupply] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   // Fetch NFT data
@@ -53,6 +55,45 @@ export default function MintPage() {
     
     // Open OpenSea collection page
     window.open(NFT_OPENSEA_URL || VISOR_OPENSEA_URL, '_blank');
+  };
+
+  // Sync NFT balance from blockchain and award points
+  const handleSyncBalance = async () => {
+    if (!address) return;
+    
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/nft/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet_address: address }),
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        showToast(data.error || 'Failed to sync', 'error');
+        return;
+      }
+      
+      // Update local balance
+      setBalance(data.current_balance);
+      
+      if (data.new_mints > 0) {
+        fireSuccessConfetti();
+        showToast(
+          `🎉 +${data.points_awarded.toLocaleString()} points! ${data.new_mints} NFT${data.new_mints > 1 ? 's' : ''} synced!`,
+          'success'
+        );
+      } else {
+        showToast('Balance synced! No new NFTs found.', 'info');
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      showToast('Failed to sync balance', 'error');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   // Convert IPFS URL to gateway URL
@@ -170,6 +211,18 @@ export default function MintPage() {
             Mint on OpenSea
           </Button>
 
+          {/* Sync Balance Button */}
+          <Button
+            variant="secondary"
+            size="lg"
+            className="w-full mt-2"
+            onClick={handleSyncBalance}
+            loading={syncing}
+            disabled={syncing}
+          >
+            {syncing ? 'Syncing...' : '🔄 Sync Balance & Claim Points'}
+          </Button>
+
           {/* Disabled reason hint */}
           {!isWhitelisted && (
             <p className="text-xs text-yellow-500 text-center mt-2">
@@ -200,8 +253,8 @@ export default function MintPage() {
       <Card variant="default" padding="sm">
         <div className="text-xs text-[#666666] space-y-2">
           <p>• NFT minting happens on OpenSea</p>
-          <p>• After minting, return here to sync your balance</p>
-          <p>• Points and VIP status are awarded automatically</p>
+          <p>• After minting, click "Sync Balance" to claim your points</p>
+          <p>• 100,000 points + VIP status per NFT minted</p>
         </div>
       </Card>
     </div>
