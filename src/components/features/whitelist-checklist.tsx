@@ -152,7 +152,7 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
 
   // Handle cast action
   const handleCast = async () => {
-    await openComposeCast('I just joined @visor - NFT points farming on Base! 🚀');
+    await openComposeCast('I just joined @visor @ukhy89 whitelist & early access');
   };
 
   if (loading) {
@@ -214,3 +214,98 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
       icon: '📝',
     },
   ];
+
+  return (
+    <Card variant="default">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white">Whitelist Tasks</h3>
+          <p className="text-sm text-[#666666]">Complete to unlock minting</p>
+        </div>
+        {isComplete && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 rounded-full">
+            <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span className="text-xs font-medium text-green-500">Whitelisted</span>
+          </div>
+        )}
+      </div>
+
+      {/* Tasks */}
+      <div className="space-y-2 mb-4">
+        {tasks.map((task) => (
+          <TaskItem
+            key={task.id}
+            label={task.label}
+            completed={task.completed}
+            onAction={task.action}
+            actionLabel={task.actionLabel}
+          />
+        ))}
+      </div>
+
+      {/* Refresh Button */}
+      <Button
+        variant="secondary"
+        size="sm"
+        className="w-full"
+        onClick={handleRefresh}
+        loading={refreshing}
+      >
+        Refresh Status
+      </Button>
+    </Card>
+  );
+}
+
+function TaskItem({
+  label,
+  completed,
+  onAction,
+  actionLabel,
+}: {
+  label: string;
+  completed: boolean;
+  onAction: () => void;
+  actionLabel: string;
+}) {
+  return (
+    <div className={cn(
+      'flex items-center justify-between p-3 rounded-xl',
+      'bg-[#111111] border',
+      completed ? 'border-green-500/30' : 'border-[#333333]'
+    )}>
+      <div className="flex items-center gap-3">
+        <div className={cn(
+          'w-8 h-8 rounded-full flex items-center justify-center',
+          completed ? 'bg-green-500' : 'bg-[#333333]'
+        )}>
+          {completed ? (
+            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <span className="w-2 h-2 rounded-full bg-[#666666]" />
+          )}
+        </div>
+        <span className={cn(
+          'text-sm',
+          completed ? 'text-[#a0a0a0] line-through' : 'text-white'
+        )}>
+          {label}
+        </span>
+      </div>
+
+      {!completed && (
+        <button
+          onClick={onAction}
+          className="px-3 py-1.5 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+        >
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
