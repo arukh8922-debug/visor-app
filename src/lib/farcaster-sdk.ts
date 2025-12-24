@@ -130,7 +130,7 @@ export async function openComposeCast(text: string, embeds?: string[]): Promise<
   try {
     await sdk.actions.composeCast({
       text,
-      embeds: embeds?.map(url => ({ url })),
+      embeds: embeds as [string] | [string, string] | undefined,
     });
     return true;
   } catch (error) {
