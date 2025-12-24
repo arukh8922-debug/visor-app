@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAccount } from 'wagmi';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CREATOR_FIDS } from '@/lib/config';
+import { CREATOR_FIDS, APP_URL } from '@/lib/config';
 import { getFarcasterProfileUrl, getFarcasterComposeUrl } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { fireSuccessConfetti } from '@/lib/confetti';
@@ -15,6 +16,7 @@ interface WhitelistChecklistProps {
     follows_creator1: boolean;
     follows_creator2: boolean;
     has_casted: boolean;
+    has_added_miniapp: boolean;
     is_whitelisted: boolean;
   };
   onRefresh: () => void;
@@ -22,11 +24,13 @@ interface WhitelistChecklistProps {
 }
 
 export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChecklistProps) {
+  const { address } = useAccount();
   const [refreshing, setRefreshing] = useState(false);
   const [celebrated, setCelebrated] = useState(false);
   const [creator1, setCreator1] = useState<CreatorInfo | null>(null);
   const [creator2, setCreator2] = useState<CreatorInfo | null>(null);
   const [creatorsLoading, setCreatorsLoading] = useState(true);
+  const [addingMiniApp, setAddingMiniApp] = useState(false);
 
   // Fetch creator info on mount
   useEffect(() => {
@@ -58,11 +62,40 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
     setRefreshing(false);
   };
 
+  // Handle "Add Mini App" action
+  const handleAddMiniApp = async () => {
+    if (!address) return;
+    
+    setAddingMiniApp(true);
+    try {
+      // Record in database that user clicked "Add Mini App"
+      await fetch('/api/miniapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet_address: address }),
+      });
+      
+      // Open Farcaster to add mini app
+      // The user needs to manually add the mini app in Farcaster
+      window.open(`https://warpcast.com/~/add-app?url=${encodeURIComponent(APP_URL)}`, '_blank');
+      
+      // Refresh status after a delay
+      setTimeout(() => {
+        onRefresh();
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to record mini app addition:', error);
+    } finally {
+      setAddingMiniApp(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card variant="default">
         <Skeleton className="h-6 w-40 mb-4" />
         <div className="space-y-3">
+          <Skeleton className="h-14" />
           <Skeleton className="h-14" />
           <Skeleton className="h-14" />
           <Skeleton className="h-14" />
@@ -74,6 +107,15 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
   const isComplete = status?.is_whitelisted;
 
   const tasks = [
+    {
+      id: 'miniapp',
+      label: 'Add Visor Mini App',
+      completed: status?.has_added_miniapp || false,
+      action: handleAddMiniApp,
+      actionLabel: addingMiniApp ? 'Adding...' : 'Add App',
+      loading: addingMiniApp,
+      icon: '📱',
+    },
     {
       id: 'follow1',
       label: creator1 ? `Follow @${creator1.username}` : 'Follow Creator 1',
@@ -101,6 +143,7 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
       action: () => window.open(getFarcasterComposeUrl('I just joined @visor - NFT points farming on Base! 🚀'), '_blank'),
       actionLabel: 'Cast',
       loading: false,
+      icon: '📝',
     },
   ];
 
@@ -157,6 +200,7 @@ function TaskItem({
   onAction,
   actionLabel,
   loading,
+  icon,
 }: {
   label: string;
   displayName?: string;
@@ -165,6 +209,7 @@ function TaskItem({
   onAction: () => void;
   actionLabel: string;
   loading?: boolean;
+  icon?: string;
 }) {
   return (
     <div className={cn(
@@ -173,7 +218,7 @@ function TaskItem({
       completed ? 'border-green-500/30' : 'border-[#333333]'
     )}>
       <div className="flex items-center gap-3">
-        {/* PFP or Checkbox */}
+        {/* PFP, Icon, or Checkbox */}
         {pfpUrl ? (
           <div className="relative">
             <img 
@@ -190,6 +235,19 @@ function TaskItem({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
+            )}
+          </div>
+        ) : icon ? (
+          <div className={cn(
+            'w-8 h-8 rounded-full flex items-center justify-center text-lg',
+            completed ? 'bg-green-500/20' : 'bg-[#333333]'
+          )}>
+            {completed ? (
+              <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              icon
             )}
           </div>
         ) : (

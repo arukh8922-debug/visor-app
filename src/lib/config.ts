@@ -15,10 +15,12 @@ export const WETH_ADDRESS = process.env.NEXT_PUBLIC_WETH_ADDRESS_MAINNET || '0x4
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
 export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Visor';
 
-// NFT Configuration
+// NFT Configuration (New ERC-721 Collection)
 export const NFT_SYMBOL = process.env.NEXT_PUBLIC_VISOR_NFT_SYMBOL || 'VISOR';
-export const NFT_ADDRESS = process.env.NEXT_PUBLIC_VISOR_NFT_ADDRESS_MAINNET || '0x2cc716F614dB19252CC4A6B54313B8f5162956Fb';
+export const NFT_ADDRESS = process.env.NEXT_PUBLIC_VISOR_NFT_ADDRESS_MAINNET || '0xefe887a1a761ad0ea870b66e59126e0249ee5aff';
 export const NFT_METADATA_URI = process.env.NEXT_PUBLIC_VISOR_NFT_METADATA_URI;
+export const NFT_OPENSEA_URL = 'https://opensea.io/collection/visor-923504088';
+export const NFT_MINT_PRICE_USD = 1; // $1 per mint
 
 // Bonding Curve Configuration
 export const CURVE_CONFIG = {
@@ -35,8 +37,26 @@ export const CURVE_CONFIG = {
 export const POINTS = {
   NFT_MINT: Number(process.env.NEXT_PUBLIC_POINTS_PER_MINT) || 100000,
   REFERRAL: Number(process.env.NEXT_PUBLIC_POINTS_PER_REFERRAL) || 1000,
-  DAILY_CHECKIN: Number(process.env.NEXT_PUBLIC_POINTS_DAILY_CHECKIN) || 100,
+  DAILY_CHECKIN: Number(process.env.NEXT_PUBLIC_POINTS_DAILY_CHECKIN) || 500, // Updated from 100 to 500
   STREAK_BONUS: Number(process.env.NEXT_PUBLIC_POINTS_STREAK_BONUS) || 500,
+};
+
+// Check-in Fee Configuration (0.03$ ETH = ~0.000012 ETH at $2500/ETH)
+export const CHECKIN_FEE = {
+  AMOUNT_USD: 0.03, // $0.03 per check-in
+  AMOUNT_ETH: '0.000012', // Approximate ETH value (update based on ETH price)
+  AMOUNT_WEI: '12000000000000', // 0.000012 ETH in wei
+  SPLIT_RATIO: 50, // 50-50 split
+};
+
+// Fee Recipients (Creator FIDs' wallet addresses)
+// These need to be set - for now using FIDs as reference
+export const FEE_RECIPIENTS = {
+  RECIPIENT_1_FID: Number(process.env.NEXT_PUBLIC_CREATOR_FID_1) || 250704,
+  RECIPIENT_2_FID: Number(process.env.NEXT_PUBLIC_CREATOR_FID_2) || 1043335,
+  // Wallet addresses will be fetched from Farcaster or set in env
+  RECIPIENT_1_ADDRESS: process.env.NEXT_PUBLIC_FEE_RECIPIENT_1 || '',
+  RECIPIENT_2_ADDRESS: process.env.NEXT_PUBLIC_FEE_RECIPIENT_2 || '',
 };
 
 // Creator FIDs for Whitelist

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkWhitelistStatus } from '@/lib/whitelist';
-import { updateUserWhitelist } from '@/lib/supabase';
+import { updateUserWhitelist, getUser } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
@@ -18,8 +18,16 @@ export async function GET(
 
     const status = await checkWhitelistStatus(address);
 
+    // Check if user has added mini app from database (tracked separately)
+    const user = await getUser(address);
+    const hasAddedMiniAppFromDb = user?.has_added_miniapp || false;
+    
+    // Combine API check with database check
+    const hasAddedMiniApp = status.hasAddedMiniApp || hasAddedMiniAppFromDb;
+
     // Update user whitelist status in database
-    const isWhitelisted = status.followsCreator1 && status.followsCreator2 && status.hasCasted;
+    // Now requires all 4 conditions: follow1, follow2, cast, and mini app
+    const isWhitelisted = status.followsCreator1 && status.followsCreator2 && status.hasCasted && hasAddedMiniApp;
     if (isWhitelisted) {
       try {
         await updateUserWhitelist(address, true);
@@ -32,6 +40,7 @@ export async function GET(
       follows_creator1: status.followsCreator1,
       follows_creator2: status.followsCreator2,
       has_casted: status.hasCasted,
+      has_added_miniapp: hasAddedMiniApp,
       is_whitelisted: isWhitelisted,
       fid: status.fid,
     });

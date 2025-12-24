@@ -73,6 +73,7 @@ export default function HomePage() {
       <PointsCard
         points={user?.points || 0}
         rank={rank}
+        isVip={user?.is_vip || false}
         breakdown={{
           nft: (user?.nft_count || 0) * 100000,
           referral: (user?.referral_count || 0) * 1000,

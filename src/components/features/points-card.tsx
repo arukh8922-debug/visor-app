@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 interface PointsCardProps {
   points: number;
   rank: number;
+  isVip?: boolean;
   breakdown?: {
     nft: number;
     referral: number;
@@ -17,7 +18,7 @@ interface PointsCardProps {
   loading?: boolean;
 }
 
-export function PointsCard({ points, rank, breakdown, loading }: PointsCardProps) {
+export function PointsCard({ points, rank, isVip, breakdown, loading }: PointsCardProps) {
   const [displayPoints, setDisplayPoints] = useState(0);
 
   // Animated counter
@@ -67,7 +68,15 @@ export function PointsCard({ points, rank, breakdown, loading }: PointsCardProps
       <div className="relative">
         {/* Header */}
         <div className="flex items-start justify-between mb-2">
-          <p className="text-sm text-[#a0a0a0]">Total Points</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-[#a0a0a0]">Total Points</p>
+            {isVip && (
+              <div className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 rounded-full">
+                <span className="text-xs">⭐</span>
+                <span className="text-xs font-medium text-yellow-500">VIP</span>
+              </div>
+            )}
+          </div>
           {rank > 0 && (
             <div className="flex items-center gap-1 px-2 py-1 bg-white/10 rounded-lg">
               <svg className="w-3.5 h-3.5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">

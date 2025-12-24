@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/toast';
 import { formatNumber, truncateAddress } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fireStreakConfetti, fireSuccessConfetti } from '@/lib/confetti';
-import { sendCheckinTransaction, waitForCheckinConfirmation, getPlatformShortName } from '@/lib/checkin';
+import { sendCheckinTransaction, waitForCheckinConfirmation, getPlatformShortName, areFeeRecipientsConfigured, CHECKIN_FEE_ETH } from '@/lib/checkin';
 import type { FarcasterUser } from '@/lib/farcaster';
 
 export default function ProfilePage() {
@@ -214,10 +214,13 @@ export default function ProfilePage() {
           <p className="text-xs text-blue-400 mb-2">{checkinStatus}</p>
         )}
         <p className="text-xs text-[#666666]">
-          Check in daily to earn 100 points. 7-day streak = 500 bonus!
+          Check in daily to earn 500 points. 7-day streak = 500 bonus!
         </p>
         <p className="text-xs text-[#444444] mt-1">
-          ⛽ Requires small gas fee (~$0.001)
+          {areFeeRecipientsConfigured() 
+            ? `💰 Check-in fee: ~$0.03 (${CHECKIN_FEE_ETH} ETH)`
+            : '⛽ Requires small gas fee (~$0.001)'
+          }
         </p>
         {user?.last_checkin && (
           <p className="text-xs text-[#444444] mt-1">

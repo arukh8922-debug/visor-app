@@ -79,6 +79,7 @@ export interface WhitelistStatus {
   follows_creator1: boolean;
   follows_creator2: boolean;
   has_casted: boolean;
+  has_added_miniapp: boolean;
   is_whitelisted: boolean;
   fid?: number;
 }

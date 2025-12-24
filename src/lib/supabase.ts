@@ -66,6 +66,37 @@ export async function updateUserWhitelist(address: string, isWhitelisted: boolea
   if (error) throw error;
 }
 
+/**
+ * Record that user has added the mini app
+ */
+export async function recordMiniAppAdded(address: string): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update({ 
+      has_added_miniapp: true, 
+      miniapp_added_at: new Date().toISOString(),
+      updated_at: new Date().toISOString() 
+    })
+    .eq('wallet_address', address.toLowerCase());
+  
+  if (error) throw error;
+}
+
+/**
+ * Set user as VIP (after NFT mint)
+ */
+export async function setUserVIP(address: string): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update({ 
+      is_vip: true, 
+      updated_at: new Date().toISOString() 
+    })
+    .eq('wallet_address', address.toLowerCase());
+  
+  if (error) throw error;
+}
+
 // ===========================================
 // LEADERBOARD FUNCTIONS
 // ===========================================
@@ -268,11 +299,12 @@ export async function getTransactions(address: string, limit: number = 20): Prom
 // ===========================================
 
 export async function recordNFTMint(address: string, amount: number, txHash: string): Promise<{ pointsAdded: number }> {
-  // Update NFT count
+  // Update NFT count and set VIP status
   const { error: updateError } = await supabase
     .from('users')
     .update({
       nft_count: supabase.rpc('increment', { x: amount }),
+      is_vip: true, // Set VIP on mint
       updated_at: new Date().toISOString(),
     })
     .eq('wallet_address', address.toLowerCase());
@@ -285,13 +317,14 @@ export async function recordNFTMint(address: string, amount: number, txHash: str
         .from('users')
         .update({
           nft_count: user.nft_count + amount,
+          is_vip: true, // Set VIP on mint
           updated_at: new Date().toISOString(),
         })
         .eq('wallet_address', address.toLowerCase());
     }
   }
   
-  // Add points
+  // Add points (100,000 per mint)
   const pointsPerMint = 100000; // POINTS.NFT_MINT
   const totalPoints = pointsPerMint * amount;
   await addPoints(address, totalPoints, 'nft_mint', txHash);
