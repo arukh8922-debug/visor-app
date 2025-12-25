@@ -41,11 +41,13 @@ export const POINTS = {
   STREAK_BONUS: Number(process.env.NEXT_PUBLIC_POINTS_STREAK_BONUS) || 500,
 };
 
-// Check-in Fee Configuration (0.03$ ETH = ~0.000012 ETH at $2500/ETH)
+// Check-in Fee Configuration
+// NOTE: Actual fee calculation is in src/lib/checkin.ts with dynamic pricing
+// Fee: $0.04 USD converted to ETH at current market rate
+// Contract: CheckinFeeSplitter at 0xa31Ff9cb316757103aC99da04f93748035eca93d
 export const CHECKIN_FEE = {
-  AMOUNT_USD: 0.03, // $0.03 per check-in
-  AMOUNT_ETH: '0.000012', // Approximate ETH value (update based on ETH price)
-  AMOUNT_WEI: '12000000000000', // 0.000012 ETH in wei
+  AMOUNT_USD: 0.04, // $0.04 per check-in (dynamic pricing)
+  CONTRACT_ADDRESS: '0xa31Ff9cb316757103aC99da04f93748035eca93d',
   SPLIT_RATIO: 50, // 50-50 split
 };
 

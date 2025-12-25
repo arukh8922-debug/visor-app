@@ -11,7 +11,10 @@ import { detectPlatform, getPlatformShortName, type Platform } from './platform'
 export const BASE_BUILDER_CODE = 'bc_gy096wvf';
 
 // CheckinFeeSplitter Contract on Base Mainnet (v2 - dynamic pricing)
-export const CHECKIN_CONTRACT_ADDRESS = '0xa31Ff9cb316757103aC99da04f93748035eca93d' as const;
+export const CHECKIN_CONTRACT_ADDRESS = (
+  process.env.NEXT_PUBLIC_CHECKIN_CONTRACT_ADDRESS || 
+  '0xa31Ff9cb316757103aC99da04f93748035eca93d'
+) as `0x${string}`;
 
 // Target fee in USD
 export const CHECKIN_FEE_USD = 0.04;
