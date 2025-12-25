@@ -15,8 +15,12 @@ export async function POST(request: NextRequest) {
   if (rateLimitResponse) return rateLimitResponse;
 
   try {
+    const body = await request.clone().json();
+    console.log('[notifications-enabled] Received request:', body);
+    
     const validation = await validateBody(request, notificationsSchema);
     if (!validation.success) {
+      console.log('[notifications-enabled] Validation failed:', validation.error);
       return NextResponse.json(
         { error: validation.error },
         { status: 400 }
@@ -24,9 +28,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { wallet_address } = validation.data;
+    const normalizedAddress = wallet_address.toLowerCase();
+    console.log('[notifications-enabled] Normalized address:', normalizedAddress);
 
     // Check if user exists
-    const user = await getUser(wallet_address);
+    const user = await getUser(normalizedAddress);
+    console.log('[notifications-enabled] User found:', !!user);
     if (!user) {
       return NextResponse.json(
         { error: 'User not found. Please connect wallet first.' },
@@ -41,22 +48,23 @@ export async function POST(request: NextRequest) {
         has_enabled_notifications: true,
         notifications_enabled_at: new Date().toISOString(),
       })
-      .eq('wallet_address', wallet_address);
+      .eq('wallet_address', normalizedAddress);
 
     if (error) {
-      console.error('Failed to update notifications status:', error);
+      console.error('[notifications-enabled] Failed to update:', error);
       return NextResponse.json(
         { error: 'Failed to record notifications enabled' },
         { status: 500 }
       );
     }
 
+    console.log('[notifications-enabled] Success for:', normalizedAddress);
     return NextResponse.json({
       success: true,
       message: 'Notifications enabled successfully',
     });
   } catch (error) {
-    console.error('Notifications record error:', error);
+    console.error('[notifications-enabled] Error:', error);
     return NextResponse.json(
       { error: 'Failed to record notifications enabled' },
       { status: 500 }

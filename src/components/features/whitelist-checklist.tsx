@@ -167,17 +167,24 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
 
   // Handle "Enable Notifications" action
   const handleEnableNotifications = async () => {
-    if (!address) return;
+    if (!address) {
+      console.log('[Notifications] No address available');
+      return;
+    }
     
+    console.log('[Notifications] Starting enable flow for:', address);
     setEnablingNotifications(true);
     try {
       if (isInFarcasterContext()) {
+        console.log('[Notifications] In Farcaster context, requesting permission...');
         // Use SDK to request notification permission
         const result = await requestNotificationPermission();
+        console.log('[Notifications] SDK result:', result);
         
         if (result.success) {
           // Save notification token to database if available
           if (result.notificationDetails) {
+            console.log('[Notifications] Saving notification details to webhook...');
             await fetch('/api/webhook', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -191,34 +198,43 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
           }
           
           // Record in database that user enabled notifications
-          await fetch('/api/notifications-enabled', {
+          console.log('[Notifications] Recording to notifications-enabled API...');
+          const response = await fetch('/api/notifications-enabled', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ wallet_address: address }),
           });
+          const data = await response.json();
+          console.log('[Notifications] API response:', response.status, data);
           onRefresh();
         } else if (result.error === 'rejected_by_user') {
-          console.log('User rejected notification permission');
+          console.log('[Notifications] User rejected notification permission');
         } else {
           // Fallback: just record that user clicked enable
-          await fetch('/api/notifications-enabled', {
+          console.log('[Notifications] SDK failed, using fallback. Error:', result.error);
+          const response = await fetch('/api/notifications-enabled', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ wallet_address: address }),
           });
+          const data = await response.json();
+          console.log('[Notifications] Fallback API response:', response.status, data);
           onRefresh();
         }
       } else {
         // Browser fallback - just record in database
-        await fetch('/api/notifications-enabled', {
+        console.log('[Notifications] Not in Farcaster context, using browser fallback');
+        const response = await fetch('/api/notifications-enabled', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ wallet_address: address }),
         });
+        const data = await response.json();
+        console.log('[Notifications] Browser fallback API response:', response.status, data);
         onRefresh();
       }
     } catch (error) {
-      console.error('Failed to enable notifications:', error);
+      console.error('[Notifications] Failed to enable notifications:', error);
     } finally {
       setEnablingNotifications(false);
     }
