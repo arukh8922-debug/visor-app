@@ -132,16 +132,21 @@ export async function getCheckinFeeDisplay(): Promise<{ eth: string; usd: string
  */
 export async function sendCheckinTransaction(
   walletClient: any, // WalletClient from wagmi
-  _address: `0x${string}`
+  address: `0x${string}`
 ): Promise<{ txHash: Hash; platform: Platform }> {
   const platform = detectPlatform();
   
   // Get dynamic fee based on current ETH price
   const feeWei = await getCheckinFeeWei();
   
-  console.log('[Checkin] Sending transaction:', {
+  // Convert to hex string for better compatibility with different wallets
+  const valueHex = `0x${feeWei.toString(16)}` as `0x${string}`;
+  
+  console.log('[Checkin] Preparing transaction:', {
     contract: CHECKIN_CONTRACT_ADDRESS,
+    from: address,
     feeWei: feeWei.toString(),
+    feeHex: valueHex,
     feeETH: (Number(feeWei) / 1e18).toFixed(8),
     platform
   });
@@ -152,16 +157,32 @@ export async function sendCheckinTransaction(
     functionName: 'checkin',
   });
   
-  // Send transaction to contract with dynamic fee
-  const txHash = await walletClient.sendTransaction({
-    to: CHECKIN_CONTRACT_ADDRESS,
-    value: feeWei,
-    data,
-  });
+  console.log('[Checkin] Encoded data:', data);
   
-  console.log('[Checkin] Transaction sent:', txHash);
-  
-  return { txHash, platform };
+  try {
+    // Send transaction to contract with dynamic fee
+    // Use explicit parameters for better wallet compatibility
+    const txHash = await walletClient.sendTransaction({
+      account: address,
+      to: CHECKIN_CONTRACT_ADDRESS,
+      value: feeWei,
+      data,
+      chain: base,
+    });
+    
+    console.log('[Checkin] Transaction sent successfully:', txHash);
+    
+    return { txHash, platform };
+  } catch (error: any) {
+    console.error('[Checkin] Transaction failed:', {
+      error: error?.message || error,
+      code: error?.code,
+      details: error?.details,
+    });
+    
+    // Re-throw with more context
+    throw new Error(`Transaction failed: ${error?.message || 'Unknown error'}`);
+  }
 }
 
 /**

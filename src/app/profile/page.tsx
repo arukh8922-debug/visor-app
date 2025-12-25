@@ -114,10 +114,18 @@ export default function ProfilePage() {
       refetchUser();
     } catch (error: any) {
       console.error('Checkin error:', error);
-      if (error?.message?.includes('rejected')) {
-        showToast('Transaction rejected', 'error');
+      
+      // More specific error messages
+      const errorMsg = error?.message || '';
+      
+      if (errorMsg.includes('rejected') || errorMsg.includes('denied')) {
+        showToast('Transaction rejected by user', 'error');
+      } else if (errorMsg.includes('insufficient')) {
+        showToast('Insufficient ETH balance', 'error');
+      } else if (errorMsg.includes('network')) {
+        showToast('Network error - please try again', 'error');
       } else {
-        showToast('Check-in failed', 'error');
+        showToast(`Check-in failed: ${errorMsg.slice(0, 50)}`, 'error');
       }
     } finally {
       setCheckingIn(false);
