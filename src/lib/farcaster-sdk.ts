@@ -191,3 +191,84 @@ export async function viewProfile(fid: number): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Check if user has enabled notifications
+ * Uses SDK context.client.notificationDetails field
+ */
+export async function hasUserEnabledNotifications(): Promise<boolean> {
+  try {
+    const context = await getMiniAppContext();
+    return !!context?.client?.notificationDetails;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get notification details from context
+ * Returns token and url if notifications are enabled
+ */
+export async function getNotificationDetails(): Promise<{ url: string; token: string } | null> {
+  try {
+    const context = await getMiniAppContext();
+    return context?.client?.notificationDetails || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Request notification permission
+ * Shows native Farcaster notification permission dialog
+ * Returns notification details if granted
+ */
+export async function requestNotificationPermission(): Promise<{
+  success: boolean;
+  notificationDetails?: { url: string; token: string };
+  error?: string;
+}> {
+  if (!isInFarcasterContext()) {
+    return { 
+      success: false, 
+      error: 'not_in_farcaster_context' 
+    };
+  }
+  
+  try {
+    // First check if already enabled via context
+    const context = await getMiniAppContext();
+    if (context?.client?.notificationDetails) {
+      return {
+        success: true,
+        notificationDetails: context.client.notificationDetails,
+      };
+    }
+    
+    // If mini app is added, notifications might already be available
+    // The addMiniApp action returns notificationDetails if user grants permission
+    // For users who already added the app, we need to prompt them again
+    const result = await sdk.actions.addMiniApp();
+    
+    if (result.notificationDetails) {
+      return {
+        success: true,
+        notificationDetails: result.notificationDetails,
+      };
+    }
+    
+    return { 
+      success: false, 
+      error: 'notifications_not_granted' 
+    };
+  } catch (error: unknown) {
+    const errorName = (error as { name?: string })?.name || '';
+    
+    if (errorName === 'AddMiniApp.RejectedByUser') {
+      return { success: false, error: 'rejected_by_user' };
+    }
+    
+    console.error('Failed to request notification permission:', error);
+    return { success: false, error: 'unknown_error' };
+  }
+}

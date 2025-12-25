@@ -13,6 +13,8 @@ import {
   isInFarcasterContext, 
   promptAddMiniApp, 
   hasUserAddedMiniApp,
+  hasUserEnabledNotifications,
+  requestNotificationPermission,
   openComposeCast,
   viewProfile 
 } from '@/lib/farcaster-sdk';
@@ -85,13 +87,25 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
           });
           onRefresh();
         }
+        
+        // Also check notification status from SDK
+        const hasNotifications = await hasUserEnabledNotifications();
+        if (hasNotifications && !status?.has_notifications) {
+          // User has enabled notifications but database doesn't know - sync it
+          await fetch('/api/notifications-enabled', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet_address: address }),
+          });
+          onRefresh();
+        }
       } else {
         // Not in Farcaster context - rely on database status only
         setSdkMiniAppAdded(null);
       }
     }
     checkAndSyncSdkStatus();
-  }, [address, status?.has_added_miniapp, onRefresh]);
+  }, [address, status?.has_added_miniapp, status?.has_notifications, onRefresh]);
 
   // Fire confetti when whitelist complete
   useEffect(() => {
@@ -157,13 +171,52 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
     
     setEnablingNotifications(true);
     try {
-      // Record in database
-      await fetch('/api/notifications-enabled', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet_address: address }),
-      });
-      onRefresh();
+      if (isInFarcasterContext()) {
+        // Use SDK to request notification permission
+        const result = await requestNotificationPermission();
+        
+        if (result.success) {
+          // Save notification token to database if available
+          if (result.notificationDetails) {
+            await fetch('/api/webhook', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                event: 'notifications_enabled',
+                data: {
+                  notificationDetails: result.notificationDetails,
+                },
+              }),
+            });
+          }
+          
+          // Record in database that user enabled notifications
+          await fetch('/api/notifications-enabled', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet_address: address }),
+          });
+          onRefresh();
+        } else if (result.error === 'rejected_by_user') {
+          console.log('User rejected notification permission');
+        } else {
+          // Fallback: just record that user clicked enable
+          await fetch('/api/notifications-enabled', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet_address: address }),
+          });
+          onRefresh();
+        }
+      } else {
+        // Browser fallback - just record in database
+        await fetch('/api/notifications-enabled', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet_address: address }),
+        });
+        onRefresh();
+      }
     } catch (error) {
       console.error('Failed to enable notifications:', error);
     } finally {
