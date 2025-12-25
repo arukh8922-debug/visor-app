@@ -1,20 +1,20 @@
 /**
  * Onchain Daily Checkin with Fee Splitter Contract
- * Sends ETH to CheckinFeeSplitter contract which auto-splits to 2 recipients
+ * Dynamic pricing: $0.04 USD converted to ETH at current market rate
  */
 
-import { createPublicClient, http, encodeFunctionData, type Hash } from 'viem';
+import { createPublicClient, http, encodeFunctionData, parseEther, type Hash } from 'viem';
 import { base } from 'viem/chains';
 import { detectPlatform, getPlatformShortName, type Platform } from './platform';
 
 // Base Builder Code for transaction attribution
 export const BASE_BUILDER_CODE = 'bc_gy096wvf';
 
-// CheckinFeeSplitter Contract on Base Mainnet
-export const CHECKIN_CONTRACT_ADDRESS = '0x43E98A36Dc2788bD422B74f562B12113CE7cfc02' as const;
+// CheckinFeeSplitter Contract on Base Mainnet (v2 - dynamic pricing)
+export const CHECKIN_CONTRACT_ADDRESS = '0xa31Ff9cb316757103aC99da04f93748035eca93d' as const;
 
-// Check-in fee: 0.00004 ETH total (0.00002 ETH per recipient)
-export const CHECKIN_FEE_WEI = BigInt('40000000000000'); // 40000000000000 wei = 0.00004 ETH
+// Target fee in USD
+export const CHECKIN_FEE_USD = 0.04;
 
 // Contract ABI (only checkin function needed)
 const CHECKIN_ABI = [
@@ -33,18 +33,84 @@ const publicClient = createPublicClient({
   transport: http(),
 });
 
+// Cache ETH price for 5 minutes
+let cachedEthPrice: { price: number; timestamp: number } | null = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Fetch current ETH price in USD from CoinGecko
+ */
+export async function getEthPriceUSD(): Promise<number> {
+  // Return cached price if still valid
+  if (cachedEthPrice && Date.now() - cachedEthPrice.timestamp < CACHE_DURATION) {
+    return cachedEthPrice.price;
+  }
+  
+  try {
+    const response = await fetch(
+      'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd',
+      { next: { revalidate: 300 } } // Cache for 5 minutes
+    );
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch ETH price');
+    }
+    
+    const data = await response.json();
+    const price = data.ethereum.usd;
+    
+    // Cache the price
+    cachedEthPrice = { price, timestamp: Date.now() };
+    
+    return price;
+  } catch (error) {
+    console.error('Failed to fetch ETH price:', error);
+    // Fallback to a reasonable default if API fails
+    return 3000; // $3000 as fallback
+  }
+}
+
+/**
+ * Calculate check-in fee in ETH based on current price
+ * Target: $0.04 USD
+ */
+export async function getCheckinFeeWei(): Promise<bigint> {
+  const ethPrice = await getEthPriceUSD();
+  const ethAmount = CHECKIN_FEE_USD / ethPrice;
+  
+  // Convert to wei (18 decimals) with some precision
+  // Round up to ensure we meet minimum
+  const weiAmount = Math.ceil(ethAmount * 1e18);
+  
+  return BigInt(weiAmount);
+}
+
 /**
  * Get check-in fee amount in wei (split amount per recipient)
  */
-export function getCheckinFeePerRecipient(): bigint {
-  return CHECKIN_FEE_WEI / BigInt(2); // 50-50 split
+export async function getCheckinFeePerRecipient(): Promise<bigint> {
+  const totalFee = await getCheckinFeeWei();
+  return totalFee / BigInt(2); // 50-50 split
 }
 
 /**
  * Get total check-in fee in wei
  */
-export function getTotalCheckinFee(): bigint {
-  return CHECKIN_FEE_WEI;
+export async function getTotalCheckinFee(): Promise<bigint> {
+  return getCheckinFeeWei();
+}
+
+/**
+ * Format fee for display
+ */
+export async function getCheckinFeeDisplay(): Promise<{ eth: string; usd: string }> {
+  const feeWei = await getCheckinFeeWei();
+  const ethAmount = Number(feeWei) / 1e18;
+  
+  return {
+    eth: ethAmount.toFixed(6),
+    usd: CHECKIN_FEE_USD.toFixed(2),
+  };
 }
 
 /**
@@ -53,9 +119,12 @@ export function getTotalCheckinFee(): bigint {
  */
 export async function sendCheckinTransaction(
   walletClient: any, // WalletClient from wagmi
-  address: `0x${string}`
+  _address: `0x${string}`
 ): Promise<{ txHash: Hash; platform: Platform }> {
   const platform = detectPlatform();
+  
+  // Get dynamic fee based on current ETH price
+  const feeWei = await getCheckinFeeWei();
   
   // Encode checkin() function call
   const data = encodeFunctionData({
@@ -63,10 +132,10 @@ export async function sendCheckinTransaction(
     functionName: 'checkin',
   });
   
-  // Send transaction to contract with fee
+  // Send transaction to contract with dynamic fee
   const txHash = await walletClient.sendTransaction({
     to: CHECKIN_CONTRACT_ADDRESS,
-    value: CHECKIN_FEE_WEI,
+    value: feeWei,
     data,
   });
   
@@ -97,7 +166,7 @@ export async function waitForCheckinConfirmation(txHash: Hash): Promise<boolean>
  * - Check tx is from the claimed address
  * - Check tx is to the CheckinFeeSplitter contract
  * - Check tx is recent (within 5 minutes)
- * - Check tx has correct value (fee payment)
+ * - Check tx has some value (dynamic pricing, just verify > 0)
  */
 export async function verifyCheckinTransaction(
   txHash: Hash,
@@ -120,9 +189,9 @@ export async function verifyCheckinTransaction(
       return { valid: false, error: 'Transaction not to CheckinFeeSplitter contract' };
     }
     
-    // Verify fee amount
-    if (tx.value < CHECKIN_FEE_WEI) {
-      return { valid: false, error: 'Insufficient fee payment' };
+    // Verify some fee was paid (dynamic pricing, just check > 0)
+    if (tx.value === BigInt(0)) {
+      return { valid: false, error: 'No fee payment' };
     }
     
     // Get block timestamp
@@ -147,6 +216,8 @@ export async function verifyCheckinTransaction(
  */
 export async function estimateCheckinGas(address: `0x${string}`): Promise<bigint> {
   try {
+    const feeWei = await getCheckinFeeWei();
+    
     const data = encodeFunctionData({
       abi: CHECKIN_ABI,
       functionName: 'checkin',
@@ -155,7 +226,7 @@ export async function estimateCheckinGas(address: `0x${string}`): Promise<bigint
     const gas = await publicClient.estimateGas({
       account: address,
       to: CHECKIN_CONTRACT_ADDRESS,
-      value: CHECKIN_FEE_WEI,
+      value: feeWei,
       data,
     });
     
