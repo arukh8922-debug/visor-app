@@ -15,6 +15,7 @@ import {
   hasUserAddedMiniApp,
   hasUserEnabledNotifications,
   requestNotificationPermission,
+  getMiniAppContext,
   openComposeCast,
   viewProfile 
 } from '@/lib/farcaster-sdk';
@@ -66,6 +67,7 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
       
       // Only check SDK status if in Farcaster context
       if (isInFarcasterContext()) {
+        const context = await getMiniAppContext();
         const added = await hasUserAddedMiniApp();
         setSdkMiniAppAdded(added);
         
@@ -88,14 +90,37 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
           onRefresh();
         }
         
-        // Also check notification status from SDK
+        // Check notification status from SDK and sync
         const hasNotifications = await hasUserEnabledNotifications();
-        if (hasNotifications && !status?.has_notifications) {
+        const fid = context?.user?.fid;
+        
+        if (hasNotifications && !status?.has_notifications && fid) {
           // User has enabled notifications but database doesn't know - sync it
-          await fetch('/api/notifications-enabled', {
-            method: 'POST',
+          const notifDetails = context?.client?.notificationDetails;
+          if (notifDetails) {
+            // Save token to database
+            await fetch('/api/notifications/token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                fid,
+                token: notifDetails.token,
+                url: notifDetails.url,
+                wallet_address: address,
+              }),
+            });
+          }
+          onRefresh();
+        } else if (!hasNotifications && status?.has_notifications && fid) {
+          // User has DISABLED notifications - sync to database
+          console.log('[Notifications] User disabled notifications, syncing to database');
+          await fetch('/api/notifications/token', {
+            method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet_address: address }),
+            body: JSON.stringify({
+              fid,
+              wallet_address: address,
+            }),
           });
           onRefresh();
         }
@@ -177,48 +202,53 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
     try {
       if (isInFarcasterContext()) {
         console.log('[Notifications] In Farcaster context, requesting permission...');
+        
+        // Get context to get FID
+        const context = await getMiniAppContext();
+        const fid = context?.user?.fid;
+        
+        if (!fid) {
+          console.log('[Notifications] No FID available from context');
+          // Fallback: just record in database without token
+          await fetch('/api/notifications-enabled', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet_address: address }),
+          });
+          onRefresh();
+          return;
+        }
+        
         // Use SDK to request notification permission
         const result = await requestNotificationPermission();
         console.log('[Notifications] SDK result:', result);
         
-        if (result.success) {
-          // Save notification token to database if available
-          if (result.notificationDetails) {
-            console.log('[Notifications] Saving notification details to webhook...');
-            await fetch('/api/webhook', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                event: 'notifications_enabled',
-                data: {
-                  notificationDetails: result.notificationDetails,
-                },
-              }),
-            });
-          }
-          
-          // Record in database that user enabled notifications
-          console.log('[Notifications] Recording to notifications-enabled API...');
-          const response = await fetch('/api/notifications-enabled', {
+        if (result.success && result.notificationDetails) {
+          // Save notification token to database
+          console.log('[Notifications] Saving notification token for FID:', fid);
+          const tokenResponse = await fetch('/api/notifications/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet_address: address }),
+            body: JSON.stringify({
+              fid,
+              token: result.notificationDetails.token,
+              url: result.notificationDetails.url,
+              wallet_address: address,
+            }),
           });
-          const data = await response.json();
-          console.log('[Notifications] API response:', response.status, data);
+          const tokenData = await tokenResponse.json();
+          console.log('[Notifications] Token save response:', tokenResponse.status, tokenData);
           onRefresh();
         } else if (result.error === 'rejected_by_user') {
           console.log('[Notifications] User rejected notification permission');
         } else {
-          // Fallback: just record that user clicked enable
-          console.log('[Notifications] SDK failed, using fallback. Error:', result.error);
-          const response = await fetch('/api/notifications-enabled', {
+          // Fallback: just record that user clicked enable (without token)
+          console.log('[Notifications] SDK failed or no token, using fallback. Error:', result.error);
+          await fetch('/api/notifications-enabled', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ wallet_address: address }),
           });
-          const data = await response.json();
-          console.log('[Notifications] Fallback API response:', response.status, data);
           onRefresh();
         }
       } else {
