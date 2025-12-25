@@ -203,6 +203,7 @@ export async function sendNotification(
   // Send to each URL
   for (const [url, tokenList] of Object.entries(tokensByUrl)) {
     try {
+      console.log('[Notifications] Sending to URL:', url, 'with', tokenList.length, 'tokens');
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -217,13 +218,16 @@ export async function sendNotification(
         }),
       });
 
+      console.log('[Notifications] Response status:', response.status);
+      const data = await response.json();
+      console.log('[Notifications] Response data:', JSON.stringify(data));
+
       if (response.ok) {
-        const data = await response.json();
         result.successfulTokens.push(...(data.successfulTokens || []));
         result.invalidTokens.push(...(data.invalidTokens || []));
         result.rateLimitedTokens.push(...(data.rateLimitedTokens || []));
       } else {
-        console.error('[Notifications] Failed to send to URL:', url, response.status);
+        console.error('[Notifications] Failed to send to URL:', url, response.status, data);
       }
     } catch (error) {
       console.error('[Notifications] Error sending to URL:', url, error);
