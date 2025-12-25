@@ -23,23 +23,32 @@ export interface MiniAppContext {
 
 /**
  * Check if running inside Farcaster Mini App context
+ * Works on both iOS and Android
  */
 export function isInFarcasterContext(): boolean {
   if (typeof window === 'undefined') return false;
   
   try {
-    // Check for Farcaster-specific indicators
+    // Check for Farcaster-specific indicators in user agent
     const userAgent = navigator.userAgent.toLowerCase();
     if (userAgent.includes('warpcast') || userAgent.includes('farcaster')) {
       return true;
     }
     
-    // Check for SDK context - sdk.context is always defined but may be a pending promise
-    // We check if we're likely in Farcaster by other means
-    
     // Check URL params (Farcaster adds these)
     const url = new URL(window.location.href);
     if (url.searchParams.has('fc_frame') || url.searchParams.has('fid')) {
+      return true;
+    }
+    
+    // Check if opened in iframe (mini apps run in iframe)
+    if (window.self !== window.top) {
+      return true;
+    }
+    
+    // Check for Farcaster SDK ready state
+    // @ts-ignore - check if sdk has been initialized
+    if (window.__FARCASTER_MINIAPP_SDK_READY__) {
       return true;
     }
     
@@ -119,6 +128,7 @@ export async function promptAddMiniApp(): Promise<{
 
 /**
  * Open compose cast dialog
+ * Works on iOS and Android Farcaster apps
  * 
  * Note on mentions: Use @username format in text (e.g., "Hello @dwr!")
  * The Farcaster client will automatically convert valid usernames to mentions.
@@ -129,12 +139,7 @@ export async function openComposeCast(text: string, embeds?: string[]): Promise<
   const embedsParam = embeds?.map(e => `&embeds[]=${encodeURIComponent(e)}`).join('') || '';
   const composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}${embedsParam}`;
   
-  if (!isInFarcasterContext()) {
-    // Fallback to Warpcast URL with embeds
-    window.open(composeUrl, '_blank');
-    return true;
-  }
-  
+  // Always try SDK first (works in mini app context)
   try {
     await sdk.actions.composeCast({
       text,
@@ -142,10 +147,29 @@ export async function openComposeCast(text: string, embeds?: string[]): Promise<
     });
     return true;
   } catch (error) {
-    console.error('Failed to open compose:', error);
-    // Fallback to URL with embeds
-    window.open(composeUrl, '_blank');
-    return false;
+    console.log('[Farcaster] SDK composeCast failed, trying fallback:', error);
+    
+    // Fallback: try opening Warpcast URL
+    // On iOS in mini app, window.open may not work, so we also try location.href
+    try {
+      // First try window.open
+      const newWindow = window.open(composeUrl, '_blank');
+      if (!newWindow) {
+        // If blocked, try direct navigation (will leave the app)
+        window.location.href = composeUrl;
+      }
+      return true;
+    } catch (fallbackError) {
+      console.error('[Farcaster] Fallback also failed:', fallbackError);
+      // Last resort: copy to clipboard and alert user
+      try {
+        await navigator.clipboard.writeText(`${text}\n\n${embeds?.[0] || ''}`);
+        alert('Link copied! Paste it in a new cast on Warpcast.');
+        return true;
+      } catch {
+        return false;
+      }
+    }
   }
 }
 
