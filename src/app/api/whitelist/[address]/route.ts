@@ -36,6 +36,10 @@ export async function GET(
     const user = await getUser(address);
     const hasAddedMiniAppFromDb = user?.has_added_miniapp || false;
     
+    // Check if user has casted from database (tracked when user clicks Cast button)
+    // This is more reliable than Neynar API which requires paid plan
+    const hasCastedFromDb = user?.has_casted || false;
+    
     // If we found FID and user doesn't have it saved, update database
     if (status.fid && user && !user.fid) {
       console.log(`[Whitelist API] Saving FID ${status.fid} to database for ${address}`);
@@ -44,16 +48,18 @@ export async function GET(
     
     // Combine API check with database check
     const hasAddedMiniApp = status.hasAddedMiniApp || hasAddedMiniAppFromDb;
+    // Use database status for cast (Neynar API requires paid plan)
+    const hasCasted = hasCastedFromDb || status.hasCasted;
     
     // Check if user has enabled notifications (from database)
     const hasNotifications = await hasEnabledNotifications(address);
 
     // Update user whitelist status in database
     // Now requires all 5 conditions: follow1, follow2, cast, mini app, and notifications
-    const isWhitelisted = status.followsCreator1 && status.followsCreator2 && status.hasCasted && hasAddedMiniApp && hasNotifications;
+    const isWhitelisted = status.followsCreator1 && status.followsCreator2 && hasCasted && hasAddedMiniApp && hasNotifications;
     
     console.log(`[Whitelist API] Final status for ${address}:`, {
-      hasCasted: status.hasCasted,
+      hasCasted,
       hasAddedMiniApp,
       hasNotifications,
       isWhitelisted,
@@ -70,7 +76,7 @@ export async function GET(
     return NextResponse.json({
       follows_creator1: status.followsCreator1,
       follows_creator2: status.followsCreator2,
-      has_casted: status.hasCasted,
+      has_casted: hasCasted,
       has_added_miniapp: hasAddedMiniApp,
       has_notifications: hasNotifications,
       is_whitelisted: isWhitelisted,

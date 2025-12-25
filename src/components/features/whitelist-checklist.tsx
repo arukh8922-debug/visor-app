@@ -304,12 +304,33 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
 
   // Handle cast action
   const handleCast = async () => {
+    if (!address) return;
+    
     const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://visor-app-opal.vercel.app';
-    await openComposeCast(
+    const success = await openComposeCast(
       'I just joined the whitelist & early access! 🎉\n\nBuilt by @visor @ukhy89',
       [appUrl]
     );
-    showToast('📝 Opening cast composer...', 'info');
+    
+    // Record cast in database when user opens compose dialog
+    // This is more reliable than Neynar API which requires paid plan
+    if (success) {
+      try {
+        await fetch('/api/cast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet_address: address }),
+        });
+        showToast('📝 Cast recorded! Refresh to update status.', 'success');
+        // Auto refresh after a short delay
+        setTimeout(() => onRefresh(), 1500);
+      } catch (error) {
+        console.error('Failed to record cast:', error);
+        showToast('📝 Opening cast composer...', 'info');
+      }
+    } else {
+      showToast('📝 Opening cast composer...', 'info');
+    }
   };
 
   if (loading) {
