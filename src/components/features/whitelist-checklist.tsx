@@ -19,6 +19,7 @@ import {
   openComposeCast,
   viewProfile 
 } from '@/lib/farcaster-sdk';
+import { useToast } from '@/components/ui/toast';
 
 interface WhitelistChecklistProps {
   status?: {
@@ -35,6 +36,7 @@ interface WhitelistChecklistProps {
 
 export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChecklistProps) {
   const { address } = useAccount();
+  const { showToast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [celebrated, setCelebrated] = useState(false);
   const [creator1, setCreator1] = useState<CreatorInfo | null>(null);
@@ -79,6 +81,7 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ wallet_address: address }),
           });
+          showToast('📱 Mini App added', 'success');
           onRefresh();
         } else if (!added && status?.has_added_miniapp) {
           // User has removed mini app - update database
@@ -87,30 +90,36 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ wallet_address: address }),
           });
+          showToast('📱 Mini App removed', 'info');
           onRefresh();
         }
         
         // Check notification status from SDK and sync
         const hasNotifications = await hasUserEnabledNotifications();
         const fid = context?.user?.fid;
+        const notifDetails = context?.client?.notificationDetails;
         
-        if (hasNotifications && !status?.has_notifications && fid) {
-          // User has enabled notifications but database doesn't know - sync it
-          const notifDetails = context?.client?.notificationDetails;
-          if (notifDetails) {
-            // Save token to database
-            await fetch('/api/notifications/token', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                fid,
-                token: notifDetails.token,
-                url: notifDetails.url,
-                wallet_address: address,
-              }),
-            });
+        // Log for debugging
+        console.log('[Sync] FID:', fid, 'hasNotifications:', hasNotifications, 'notifDetails:', notifDetails);
+        
+        // If user has notifications enabled (from menu or SDK), save token
+        if (hasNotifications && fid && notifDetails) {
+          // Always try to save/update token if we have notificationDetails
+          console.log('[Sync] Saving notification token for FID:', fid);
+          await fetch('/api/notifications/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fid,
+              token: notifDetails.token,
+              url: notifDetails.url,
+              wallet_address: address,
+            }),
+          });
+          if (!status?.has_notifications) {
+            showToast('🔔 Notifications enabled', 'success');
+            onRefresh();
           }
-          onRefresh();
         } else if (!hasNotifications && status?.has_notifications && fid) {
           // User has DISABLED notifications - sync to database
           console.log('[Notifications] User disabled notifications, syncing to database');
@@ -122,6 +131,7 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
               wallet_address: address,
             }),
           });
+          showToast('🔕 Notifications disabled', 'info');
           onRefresh();
         }
       } else {
@@ -130,6 +140,18 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
       }
     }
     checkAndSyncSdkStatus();
+    
+    // Also re-check when page becomes visible (user returns to app)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkAndSyncSdkStatus();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [address, status?.has_added_miniapp, status?.has_notifications, onRefresh]);
 
   // Fire confetti when whitelist complete
@@ -169,9 +191,11 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ wallet_address: address }),
           });
+          showToast('📱 Mini App added!', 'success');
           onRefresh();
         } else if (result.error === 'rejected_by_user') {
           console.log('User rejected add mini app');
+          showToast('Mini App not added', 'info');
         }
       } else {
         // Browser fallback - open Warpcast URL
@@ -238,9 +262,11 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
           });
           const tokenData = await tokenResponse.json();
           console.log('[Notifications] Token save response:', tokenResponse.status, tokenData);
+          showToast('🔔 Notifications enabled!', 'success');
           onRefresh();
         } else if (result.error === 'rejected_by_user') {
           console.log('[Notifications] User rejected notification permission');
+          showToast('Notifications not enabled', 'info');
         } else {
           // Fallback: just record that user clicked enable (without token)
           console.log('[Notifications] SDK failed or no token, using fallback. Error:', result.error);
@@ -273,6 +299,7 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
   // Handle follow action
   const handleFollow = async (fid: number) => {
     await viewProfile(fid);
+    showToast('👤 Opening profile...', 'info');
   };
 
   // Handle cast action
@@ -282,6 +309,7 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
       'I just joined the whitelist & early access! 🎉\n\nBuilt by @visor @ukhy89',
       [appUrl]
     );
+    showToast('📝 Opening cast composer...', 'info');
   };
 
   if (loading) {

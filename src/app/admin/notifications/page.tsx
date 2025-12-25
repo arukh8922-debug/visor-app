@@ -109,7 +109,12 @@ export default function AdminNotificationsPage() {
         return;
       }
 
-      showToast(`Notification sent! Success: ${data.successfulTokens?.length || 0}`, 'success');
+      // Handle different response formats
+      if (data.type === 'broadcast' || data.type === 'multi') {
+        showToast(`Notification sent! Sent: ${data.sent || 0}, Failed: ${data.failed || 0}`, 'success');
+      } else {
+        showToast(`Notification sent! Success: ${data.successfulTokens?.length || (data.success ? 1 : 0)}`, 'success');
+      }
       
       // Reset form
       setTitle('');

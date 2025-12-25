@@ -277,11 +277,16 @@ export async function broadcastNotification(
   notificationId: string
 ): Promise<{ sent: number; failed: number }> {
   const tokens = await getAllEnabledTokens();
+  console.log('[Notifications] Broadcasting to', tokens.length, 'tokens');
   
   // Get unique FIDs
   const fids = [...new Set(tokens.map(t => t.fid))];
+  console.log('[Notifications] Unique FIDs:', fids);
   
-  return sendNotificationToMany(fids, title, body, targetUrl, notificationId);
+  const result = await sendNotificationToMany(fids, title, body, targetUrl, notificationId);
+  console.log('[Notifications] Broadcast result:', result);
+  
+  return result;
 }
 
 
