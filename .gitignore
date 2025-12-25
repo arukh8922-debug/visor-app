@@ -48,3 +48,8 @@ playwright-report
 # Kiro
 .kiro
 .env*.local
+
+# Foundry/Contracts
+contracts/out
+contracts/cache
+contracts/broadcast
