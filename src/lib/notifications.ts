@@ -10,7 +10,7 @@
  * 2. App wants to notify user → sendNotification() → POST to Farcaster client URL
  */
 
-import { supabase } from './supabase';
+import { supabaseAdmin } from './supabase';
 
 // ===========================================
 // TYPES
@@ -53,7 +53,8 @@ export async function saveNotificationToken(
   token: string,
   url: string
 ): Promise<void> {
-  const { error } = await supabase
+  console.log('[Notifications] Saving token for FID:', fid);
+  const { error } = await supabaseAdmin
     .from('notification_tokens')
     .upsert(
       {
@@ -64,7 +65,7 @@ export async function saveNotificationToken(
         updated_at: new Date().toISOString(),
       },
       {
-        onConflict: 'fid,token',
+        onConflict: 'fid',
       }
     );
 
@@ -72,13 +73,14 @@ export async function saveNotificationToken(
     console.error('[Notifications] Failed to save token:', error);
     throw error;
   }
+  console.log('[Notifications] Token saved successfully for FID:', fid);
 }
 
 /**
  * Disable notification tokens for a user (when they disable notifications)
  */
 export async function disableNotificationToken(fid: number): Promise<void> {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('notification_tokens')
     .update({ enabled: false, updated_at: new Date().toISOString() })
     .eq('fid', fid);
@@ -93,7 +95,7 @@ export async function disableNotificationToken(fid: number): Promise<void> {
  * Remove all notification tokens for a user (when they remove the mini app)
  */
 export async function removeNotificationTokensByFid(fid: number): Promise<void> {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('notification_tokens')
     .delete()
     .eq('fid', fid);
@@ -110,7 +112,7 @@ export async function removeNotificationTokensByFid(fid: number): Promise<void> 
 export async function markTokensInvalid(tokens: string[]): Promise<void> {
   if (tokens.length === 0) return;
 
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('notification_tokens')
     .delete()
     .in('token', tokens);
@@ -124,7 +126,7 @@ export async function markTokensInvalid(tokens: string[]): Promise<void> {
  * Get all enabled notification tokens for a user
  */
 export async function getNotificationTokens(fid: number): Promise<NotificationToken[]> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('notification_tokens')
     .select('*')
     .eq('fid', fid)
@@ -142,7 +144,7 @@ export async function getNotificationTokens(fid: number): Promise<NotificationTo
  * Get all enabled notification tokens (for broadcast)
  */
 export async function getAllEnabledTokens(): Promise<NotificationToken[]> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('notification_tokens')
     .select('*')
     .eq('enabled', true);
