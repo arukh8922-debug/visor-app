@@ -126,6 +126,7 @@ export async function markTokensInvalid(tokens: string[]): Promise<void> {
  * Get all enabled notification tokens for a user
  */
 export async function getNotificationTokens(fid: number): Promise<NotificationToken[]> {
+  console.log('[Notifications] Getting tokens for FID:', fid);
   const { data, error } = await supabaseAdmin
     .from('notification_tokens')
     .select('*')
@@ -137,6 +138,7 @@ export async function getNotificationTokens(fid: number): Promise<NotificationTo
     return [];
   }
 
+  console.log('[Notifications] Found', data?.length || 0, 'tokens for FID:', fid);
   return data || [];
 }
 
@@ -144,6 +146,7 @@ export async function getNotificationTokens(fid: number): Promise<NotificationTo
  * Get all enabled notification tokens (for broadcast)
  */
 export async function getAllEnabledTokens(): Promise<NotificationToken[]> {
+  console.log('[Notifications] Getting all enabled tokens...');
   const { data, error } = await supabaseAdmin
     .from('notification_tokens')
     .select('*')
@@ -154,6 +157,7 @@ export async function getAllEnabledTokens(): Promise<NotificationToken[]> {
     return [];
   }
 
+  console.log('[Notifications] Found', data?.length || 0, 'enabled tokens');
   return data || [];
 }
 
