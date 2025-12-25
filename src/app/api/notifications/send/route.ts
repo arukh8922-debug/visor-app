@@ -79,9 +79,8 @@ export async function POST(request: NextRequest) {
         notificationId,
       });
       return NextResponse.json({
-        success: result.success,
-        type: 'single',
         ...result,
+        type: 'single',
       });
     } else {
       return NextResponse.json(

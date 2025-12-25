@@ -11,6 +11,7 @@ import type { Referral } from '@/types/database';
 
 interface ReferralShareProps {
   address: string;
+  username?: string;
   totalReferrals: number;
   pointsEarned: number;
   recentReferrals?: Referral[];
@@ -19,13 +20,15 @@ interface ReferralShareProps {
 
 export function ReferralShare({
   address,
+  username,
   totalReferrals,
   pointsEarned,
   recentReferrals = [],
   loading,
 }: ReferralShareProps) {
   const [copied, setCopied] = useState(false);
-  const referralLink = getReferralLink(address);
+  // Use username if available, otherwise fallback to address
+  const referralLink = getReferralLink(username || address);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(referralLink);
@@ -85,7 +88,7 @@ export function ReferralShare({
         size="md"
         className="w-full mb-4"
         onClick={async () => {
-          const text = `Join me on Visor - NFT points farming on Base! 🚀\n\nUse my referral link:`;
+          const text = `Join me on Visor - NFT points earn on Base! 🚀\n\nUse my referral link:`;
           // Use SDK composeCast with referral link as embed for better preview
           await openComposeCast(text, [referralLink]);
         }}

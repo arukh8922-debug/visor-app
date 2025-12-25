@@ -7,14 +7,14 @@ import { BottomNav } from '@/components/layout/bottom-nav';
 const baseUrl = 'https://visor-app-opal.vercel.app';
 
 export const metadata: Metadata = {
-  title: 'Visor - NFT Points Farming',
+  title: 'Visor - NFT Points Earn',
   description: 'Mint Visor NFT, earn points through referrals and daily activity, and qualify for future airdrops on Base.',
   icons: {
     icon: `${baseUrl}/icon.jpg`,
     apple: `${baseUrl}/icon.jpg`,
   },
   openGraph: {
-    title: 'Visor - NFT Points Farming',
+    title: 'Visor - NFT Points Earn',
     description: 'Mint Visor NFT, earn points, and qualify for future airdrops on Base.',
     url: baseUrl,
     siteName: 'Visor',
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
         url: `${baseUrl}/og-image.jpg`,
         width: 1200,
         height: 630,
-        alt: 'Visor - NFT Points Farming on Base',
+        alt: 'Visor - NFT Points Earn on Base',
       },
     ],
     locale: 'en_US',
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Visor - NFT Points Farming',
+    title: 'Visor - NFT Points Earn',
     description: 'Mint Visor NFT, earn points, and qualify for future airdrops on Base.',
     images: [`${baseUrl}/og-image.jpg`],
   },

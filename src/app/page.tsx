@@ -40,7 +40,7 @@ export default function HomePage() {
       <div className="flex flex-col items-center justify-center min-h-[70vh] p-6 text-center">
         <div className="mb-8">
           <h1 className="text-5xl font-bold text-white mb-3 tracking-tight">VISOR</h1>
-          <p className="text-[#a0a0a0]">NFT Points Farming on Base</p>
+          <p className="text-[#a0a0a0]">NFT Points Earn on Base</p>
         </div>
 
         <p className="text-sm text-[#666666] mb-8">

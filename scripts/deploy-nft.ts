@@ -24,7 +24,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
 const NFT_NAME = 'Visor NFT';
 const NFT_SYMBOL = process.env.NEXT_PUBLIC_VISOR_NFT_SYMBOL || 'VISOR';
-const NFT_DESCRIPTION = 'Visor NFT - Points farming on Base network';
+const NFT_DESCRIPTION = 'Visor NFT - Points earn on Base network';
 
 // Bonding curve config from env
 const CURVE_TYPE = (process.env.NEXT_PUBLIC_CURVE_TYPE || 'LINEAR') as 'LINEAR' | 'EXPONENTIAL' | 'FLAT';

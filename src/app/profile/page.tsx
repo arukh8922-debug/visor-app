@@ -235,6 +235,7 @@ export default function ProfilePage() {
       {/* Referral Section */}
       <ReferralShare
         address={address}
+        username={farcasterUser?.username}
         totalReferrals={totalReferrals}
         pointsEarned={pointsEarned}
         recentReferrals={recentReferrals}
