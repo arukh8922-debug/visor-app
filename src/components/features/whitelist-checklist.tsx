@@ -158,7 +158,7 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
   const handleCast = async () => {
     const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://visor-app-opal.vercel.app';
     await openComposeCast(
-      'I just joined the whitelist & early access! 🎉\n\nBuilt by @ukhy89 @papusiek1111',
+      'I just joined the whitelist & early access! 🎉\n\nBuilt by @visor @ukhy89',
       [appUrl]
     );
   };
