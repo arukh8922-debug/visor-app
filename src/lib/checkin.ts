@@ -133,23 +133,23 @@ export async function getCheckinFeeDisplay(): Promise<{ eth: string; usd: string
 export async function sendCheckinTransaction(
   walletClient: any, // WalletClient from wagmi
   address: `0x${string}`
-): Promise<{ txHash: Hash; platform: Platform }> {
+): Promise<{ txHash: Hash; platform: Platform; feeInfo: { wei: string; eth: string; usd: string } }> {
   const platform = detectPlatform();
   
   // Get dynamic fee based on current ETH price
   const feeWei = await getCheckinFeeWei();
+  const feeEth = (Number(feeWei) / 1e18).toFixed(8);
+  const feeUsd = CHECKIN_FEE_USD.toFixed(2);
   
-  // Convert to hex string for better compatibility with different wallets
-  const valueHex = `0x${feeWei.toString(16)}` as `0x${string}`;
+  // Log fee info for debugging
+  const feeInfo = {
+    wei: feeWei.toString(),
+    eth: feeEth,
+    usd: feeUsd,
+  };
   
-  console.log('[Checkin] Preparing transaction:', {
-    contract: CHECKIN_CONTRACT_ADDRESS,
-    from: address,
-    feeWei: feeWei.toString(),
-    feeHex: valueHex,
-    feeETH: (Number(feeWei) / 1e18).toFixed(8),
-    platform
-  });
+  console.log('[Checkin] Fee calculation:', feeInfo);
+  console.log('[Checkin] Target USD:', CHECKIN_FEE_USD);
   
   // Encode checkin() function call
   const data = encodeFunctionData({
@@ -157,11 +157,18 @@ export async function sendCheckinTransaction(
     functionName: 'checkin',
   });
   
-  console.log('[Checkin] Encoded data:', data);
+  console.log('[Checkin] Preparing transaction:', {
+    contract: CHECKIN_CONTRACT_ADDRESS,
+    from: address,
+    value: feeWei.toString(),
+    valueHex: `0x${feeWei.toString(16)}`,
+    data,
+    platform,
+  });
   
   try {
     // Send transaction to contract with dynamic fee
-    // Use explicit parameters for better wallet compatibility
+    // Use BigInt value directly - wagmi/viem handles conversion
     const txHash = await walletClient.sendTransaction({
       account: address,
       to: CHECKIN_CONTRACT_ADDRESS,
@@ -172,12 +179,13 @@ export async function sendCheckinTransaction(
     
     console.log('[Checkin] Transaction sent successfully:', txHash);
     
-    return { txHash, platform };
+    return { txHash, platform, feeInfo };
   } catch (error: any) {
     console.error('[Checkin] Transaction failed:', {
       error: error?.message || error,
       code: error?.code,
       details: error?.details,
+      feeInfo,
     });
     
     // Re-throw with more context

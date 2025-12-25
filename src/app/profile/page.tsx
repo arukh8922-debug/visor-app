@@ -65,12 +65,13 @@ export default function ProfilePage() {
     setCheckinStatus('Sending transaction...');
     
     try {
-      const { txHash, platform } = await sendCheckinTransaction(
+      const { txHash, platform, feeInfo } = await sendCheckinTransaction(
         walletClient,
         address as `0x${string}`
       );
       
-      setCheckinStatus('Waiting for confirmation...');
+      console.log('[Profile] Check-in fee info:', feeInfo);
+      setCheckinStatus(`Waiting for confirmation... (${feeInfo.eth} ETH ≈ $${feeInfo.usd})`);
       
       const confirmed = await waitForCheckinConfirmation(txHash);
       
