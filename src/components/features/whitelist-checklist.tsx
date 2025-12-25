@@ -197,8 +197,12 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
       id: 'notifications',
       label: 'Enable Notifications',
       completed: status?.has_notifications || false,
-      action: handleAddMiniApp, // Same action - adding mini app enables notifications in Warpcast
-      actionLabel: 'Enable',
+      action: () => {
+        // No SDK to enable notifications directly
+        // Show instruction to user
+        alert('Tap the "..." menu at top right corner, then tap "Enable Notifications"');
+      },
+      actionLabel: 'How?',
       loading: false,
       icon: '🔔',
     },
