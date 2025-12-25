@@ -13,6 +13,8 @@ export interface User {
   is_vip: boolean;
   has_added_miniapp: boolean;
   miniapp_added_at: string | null;
+  has_enabled_notifications: boolean;
+  notifications_enabled_at: string | null;
   last_checkin: string | null;
   streak_count: number;
   last_checkin_platform: string | null;

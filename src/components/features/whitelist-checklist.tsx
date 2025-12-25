@@ -38,6 +38,7 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
   const [creator2, setCreator2] = useState<CreatorInfo | null>(null);
   const [creatorsLoading, setCreatorsLoading] = useState(true);
   const [addingMiniApp, setAddingMiniApp] = useState(false);
+  const [enablingNotifications, setEnablingNotifications] = useState(false);
   const [sdkMiniAppAdded, setSdkMiniAppAdded] = useState<boolean | null>(null);
 
   // Fetch creator info on mount
@@ -150,6 +151,26 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
     }
   };
 
+  // Handle "Enable Notifications" action
+  const handleEnableNotifications = async () => {
+    if (!address) return;
+    
+    setEnablingNotifications(true);
+    try {
+      // Record in database
+      await fetch('/api/notifications-enabled', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet_address: address }),
+      });
+      onRefresh();
+    } catch (error) {
+      console.error('Failed to enable notifications:', error);
+    } finally {
+      setEnablingNotifications(false);
+    }
+  };
+
   // Handle follow action
   const handleFollow = async (fid: number) => {
     await viewProfile(fid);
@@ -197,13 +218,9 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
       id: 'notifications',
       label: 'Enable Notifications',
       completed: status?.has_notifications || false,
-      action: () => {
-        // No SDK to enable notifications directly
-        // Show instruction to user
-        alert('Tap the "..." menu at top right corner, then tap "Enable Notifications"');
-      },
-      actionLabel: 'How?',
-      loading: false,
+      action: handleEnableNotifications,
+      actionLabel: enablingNotifications ? 'Enabling...' : 'Enable',
+      loading: enablingNotifications,
       icon: '🔔',
     },
     {
