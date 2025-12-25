@@ -26,7 +26,6 @@ export default function ProfilePage() {
   const [checkinStatus, setCheckinStatus] = useState<string>('');
   const [farcasterUser, setFarcasterUser] = useState<FarcasterUser | null>(null);
   const [loadingFarcaster, setLoadingFarcaster] = useState(false);
-  const [checkinFee, setCheckinFee] = useState<{ eth: string; usd: string } | null>(null);
 
   // Fetch Farcaster user data
   useEffect(() => {
@@ -49,26 +48,6 @@ export default function ProfilePage() {
     
     fetchFarcasterUser();
   }, [address]);
-
-  // Fetch check-in fee on mount
-  useEffect(() => {
-    async function fetchCheckinFee() {
-      try {
-        const res = await fetch('/api/checkin/fee');
-        if (res.ok) {
-          const data = await res.json();
-          setCheckinFee({
-            eth: data.ethFormatted,
-            usd: data.usdFormatted,
-          });
-        }
-      } catch (error) {
-        console.error('Failed to fetch checkin fee:', error);
-      }
-    }
-    
-    fetchCheckinFee();
-  }, []);
 
   // Check if user can check in (last_checkin > 24 hours ago)
   const canCheckIn = () => {
@@ -245,11 +224,6 @@ export default function ProfilePage() {
         )}
         <p className="text-xs text-[#666666]">
           Check in daily to earn 500 points. 7-day streak = 500 bonus!
-          {checkinFee && (
-            <span className="block mt-1 text-[#888888]">
-              Fee: {checkinFee.eth} ETH (≈ {checkinFee.usd})
-            </span>
-          )}
         </p>
         {user?.last_checkin && (
           <p className="text-xs text-[#444444] mt-1">

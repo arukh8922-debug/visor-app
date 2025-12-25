@@ -19,11 +19,13 @@ if (typeof window !== 'undefined') {
 }
 
 // Wagmi config with multiple connectors for browser + Farcaster support
-// Base Mainnet only
+// Base Mainnet only - use reliable RPC
+const BASE_RPC_URL = process.env.NEXT_PUBLIC_BASE_MAINNET_RPC || 'https://mainnet.base.org';
+
 export const wagmiConfig = createConfig({
   chains: [base],
   transports: {
-    [base.id]: http(),
+    [base.id]: http(BASE_RPC_URL),
   },
   connectors: [
     // Farcaster MiniApp connector (for Farcaster context)
