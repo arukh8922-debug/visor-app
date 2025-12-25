@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/supabase';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { validateBody } from '@/lib/validation';
 import { rateLimitMiddleware } from '@/lib/rate-limit';
 import { z } from 'zod';
@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Record notifications enabled
-    const { error } = await supabase
+    // Record notifications enabled (use admin client to bypass RLS)
+    const { error } = await supabaseAdmin
       .from('users')
       .update({
         has_enabled_notifications: true,
