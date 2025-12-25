@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { recordDailyCheckin } from '@/lib/supabase';
+import { recordDailyCheckin, getUser } from '@/lib/supabase';
 import { validateBody, checkinSchema } from '@/lib/validation';
 import { rateLimitMiddleware } from '@/lib/rate-limit';
 import { verifyCheckinTransaction } from '@/lib/checkin';
+import { notifyCheckinPoints } from '@/lib/notifications';
 
 export async function POST(request: NextRequest) {
   // Rate limiting - stricter for checkin (10 per minute)
@@ -36,6 +37,12 @@ export async function POST(request: NextRequest) {
 
     // Record checkin with tx_hash and platform
     const result = await recordDailyCheckin(wallet_address, tx_hash, platform);
+
+    // Send notification (get FID from user)
+    const user = await getUser(wallet_address);
+    if (user?.fid) {
+      notifyCheckinPoints(user.fid, result.pointsAwarded, result.streak).catch(console.error);
+    }
 
     return NextResponse.json({
       success: true,

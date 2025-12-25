@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { recordNFTMint } from '@/lib/supabase';
+import { recordNFTMint, getUser } from '@/lib/supabase';
 import { validateBody, mintCallbackSchema } from '@/lib/validation';
 import { rateLimitMiddleware } from '@/lib/rate-limit';
+import { notifyNFTMint } from '@/lib/notifications';
 
 export async function POST(request: NextRequest) {
   // Rate limiting - stricter for mint callback (20 per minute)
@@ -21,6 +22,12 @@ export async function POST(request: NextRequest) {
     const { wallet_address, tx_hash, amount } = validation.data;
 
     const result = await recordNFTMint(wallet_address, amount, tx_hash);
+
+    // Send notification to user
+    const user = await getUser(wallet_address);
+    if (user?.fid) {
+      notifyNFTMint(user.fid, amount, result.pointsAdded).catch(console.error);
+    }
 
     return NextResponse.json({
       success: true,

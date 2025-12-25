@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateUser, processReferral } from '@/lib/supabase';
 import { validateBody, registerUserSchema } from '@/lib/validation';
 import { rateLimitMiddleware } from '@/lib/rate-limit';
+import { notifyNewReferral } from '@/lib/notifications';
 
 export async function POST(request: NextRequest) {
   // Rate limiting
@@ -29,6 +30,17 @@ export async function POST(request: NextRequest) {
       try {
         const result = await processReferral(referrer, wallet_address);
         referralProcessed = result.success;
+        
+        // Send notification to referrer
+        if (result.success && result.pointsAwarded > 0) {
+          // Get referrer's FID for notification
+          const { data: referrerUser } = await import('@/lib/supabase').then(m => 
+            m.supabase.from('users').select('fid').eq('wallet_address', referrer.toLowerCase()).single()
+          );
+          if (referrerUser?.fid) {
+            notifyNewReferral(referrerUser.fid, result.pointsAwarded).catch(console.error);
+          }
+        }
       } catch (error) {
         console.error('Referral processing failed:', error);
       }
