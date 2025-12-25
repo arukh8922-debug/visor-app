@@ -119,11 +119,19 @@ export async function promptAddMiniApp(): Promise<{
 
 /**
  * Open compose cast dialog
+ * 
+ * Note on mentions: Use @username format in text (e.g., "Hello @dwr!")
+ * The Farcaster client will automatically convert valid usernames to mentions.
+ * Make sure usernames are valid Farcaster usernames (no spaces, lowercase).
  */
 export async function openComposeCast(text: string, embeds?: string[]): Promise<boolean> {
+  // Build embeds array for URL fallback
+  const embedsParam = embeds?.map(e => `&embeds[]=${encodeURIComponent(e)}`).join('') || '';
+  const composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}${embedsParam}`;
+  
   if (!isInFarcasterContext()) {
-    // Fallback to Warpcast URL
-    window.open(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`, '_blank');
+    // Fallback to Warpcast URL with embeds
+    window.open(composeUrl, '_blank');
     return true;
   }
   
@@ -135,8 +143,8 @@ export async function openComposeCast(text: string, embeds?: string[]): Promise<
     return true;
   } catch (error) {
     console.error('Failed to open compose:', error);
-    // Fallback to URL
-    window.open(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`, '_blank');
+    // Fallback to URL with embeds
+    window.open(composeUrl, '_blank');
     return false;
   }
 }

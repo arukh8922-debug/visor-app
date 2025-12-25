@@ -5,7 +5,8 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getReferralLink, getFarcasterComposeUrl, formatNumber, formatRelativeTime } from '@/lib/utils';
+import { getReferralLink, formatNumber, formatRelativeTime } from '@/lib/utils';
+import { openComposeCast } from '@/lib/farcaster-sdk';
 import type { Referral } from '@/types/database';
 
 interface ReferralShareProps {
@@ -30,11 +31,6 @@ export function ReferralShare({
     await navigator.clipboard.writeText(referralLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleShare = () => {
-    const text = `Join me on Visor - NFT points farming on Base! 🚀\n\nUse my referral link: ${referralLink}`;
-    window.open(getFarcasterComposeUrl(text), '_blank');
   };
 
   if (loading) {
@@ -88,7 +84,11 @@ export function ReferralShare({
         variant="primary"
         size="md"
         className="w-full mb-4"
-        onClick={handleShare}
+        onClick={async () => {
+          const text = `Join me on Visor - NFT points farming on Base! 🚀\n\nUse my referral link:`;
+          // Use SDK composeCast with referral link as embed for better preview
+          await openComposeCast(text, [referralLink]);
+        }}
       >
         <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
           <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z" />
