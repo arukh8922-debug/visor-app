@@ -78,10 +78,12 @@ export async function checkWhitelistStatus(address: string): Promise<WhitelistRe
 async function getFidFromAddress(address: string): Promise<number | null> {
   try {
     if (!NEYNAR_API_KEY) {
-      console.error('NEYNAR_API_KEY not set');
+      console.error('[Whitelist] NEYNAR_API_KEY not set');
       return null;
     }
 
+    console.log(`[Whitelist] Looking up FID for address: ${address}`);
+    
     const response = await fetch(
       `${NEYNAR_API_URL}/user/bulk-by-address?addresses=${address.toLowerCase()}`,
       {
@@ -93,16 +95,24 @@ async function getFidFromAddress(address: string): Promise<number | null> {
     );
 
     if (!response.ok) {
-      console.error('Neynar API error:', response.status);
+      const errorText = await response.text();
+      console.error(`[Whitelist] Neynar API error: ${response.status}`, errorText);
       return null;
     }
 
     const data = await response.json();
+    console.log(`[Whitelist] Neynar response for ${address}:`, JSON.stringify(data).substring(0, 200));
+    
     const users = data[address.toLowerCase()];
     
-    if (!users || users.length === 0) return null;
+    if (!users || users.length === 0) {
+      console.log(`[Whitelist] No Farcaster user found for address: ${address}`);
+      return null;
+    }
     
-    return users[0].fid || null;
+    const fid = users[0].fid || null;
+    console.log(`[Whitelist] Found FID ${fid} for address: ${address}`);
+    return fid;
   } catch (error) {
     console.error('Failed to get FID:', error);
     return null;
@@ -150,9 +160,8 @@ async function checkFollows(userFid: number, targetFid: number): Promise<boolean
 /**
  * Check if user has casted about Visor using Neynar API
  * Uses multiple methods to ensure we catch the cast:
- * 1. Search for casts mentioning "visor" by the user
- * 2. Check user's recent casts for "visor" keyword
- * 3. Check for casts with visor app URL in embeds
+ * 1. Check user's recent casts for "visor" keyword in text
+ * 2. Check for casts with visor app URL in embeds
  */
 async function checkVisorCast(userFid: number): Promise<boolean> {
   try {
@@ -161,29 +170,12 @@ async function checkVisorCast(userFid: number): Promise<boolean> {
       return false;
     }
 
-    // Method 1: Use cast search endpoint to find casts by user mentioning visor
-    const searchResponse = await fetch(
-      `${NEYNAR_API_URL}/cast/search?q=visor&author_fid=${userFid}&limit=5`,
-      {
-        headers: {
-          'accept': 'application/json',
-          'x-api-key': NEYNAR_API_KEY,
-        },
-      }
-    );
+    console.log(`[Whitelist] Checking casts for FID ${userFid}`);
 
-    if (searchResponse.ok) {
-      const searchData = await searchResponse.json();
-      const searchCasts = searchData.result?.casts || searchData.casts || [];
-      if (searchCasts.length > 0) {
-        console.log(`[Whitelist] Found ${searchCasts.length} casts via search for FID ${userFid}`);
-        return true;
-      }
-    }
-
-    // Method 2: Fallback to user's feed and check text + embeds
+    // Use user's feed endpoint to get their casts
+    // Correct endpoint: /feed/user/{fid}/casts
     const feedResponse = await fetch(
-      `${NEYNAR_API_URL}/feed/user/casts?fid=${userFid}&limit=100&include_replies=true`,
+      `${NEYNAR_API_URL}/feed/user/${userFid}/casts?limit=100&include_replies=true`,
       {
         headers: {
           'accept': 'application/json',
@@ -193,38 +185,44 @@ async function checkVisorCast(userFid: number): Promise<boolean> {
     );
 
     if (!feedResponse.ok) {
-      console.error('Neynar feed API error:', feedResponse.status);
+      const errorText = await feedResponse.text();
+      console.error(`[Whitelist] Neynar feed API error: ${feedResponse.status}`, errorText);
       return false;
     }
 
     const feedData = await feedResponse.json();
     const casts = feedData.casts || [];
     
+    console.log(`[Whitelist] Found ${casts.length} casts for FID ${userFid}`);
+    
     // Check if any cast mentions "visor" in text or has visor URL in embeds
     const visorAppUrl = process.env.NEXT_PUBLIC_APP_URL || 'visor-app';
-    const found = casts.some((cast: { text?: string; embeds?: Array<{ url?: string }> }) => {
+    
+    for (const cast of casts) {
       const text = (cast.text || '').toLowerCase();
       
-      // Check text for "visor"
+      // Check text for "visor" (includes @visor mentions)
       if (text.includes('visor')) {
+        console.log(`[Whitelist] Found cast with "visor" in text for FID ${userFid}:`, text.substring(0, 100));
         return true;
       }
       
       // Check embeds for visor app URL
       if (cast.embeds && Array.isArray(cast.embeds)) {
-        return cast.embeds.some(embed => {
+        for (const embed of cast.embeds) {
           const embedUrl = (embed.url || '').toLowerCase();
-          return embedUrl.includes('visor') || embedUrl.includes(visorAppUrl.toLowerCase());
-        });
+          if (embedUrl.includes('visor') || embedUrl.includes(visorAppUrl.toLowerCase())) {
+            console.log(`[Whitelist] Found cast with visor URL in embed for FID ${userFid}:`, embedUrl);
+            return true;
+          }
+        }
       }
-      
-      return false;
-    });
+    }
 
-    console.log(`[Whitelist] Cast check for FID ${userFid}: found=${found}, checked ${casts.length} casts`);
-    return found;
+    console.log(`[Whitelist] No visor cast found for FID ${userFid} after checking ${casts.length} casts`);
+    return false;
   } catch (error) {
-    console.error('Failed to check casts:', error);
+    console.error('[Whitelist] Failed to check casts:', error);
     return false;
   }
 }

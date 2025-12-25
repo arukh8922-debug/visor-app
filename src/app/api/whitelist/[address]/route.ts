@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkWhitelistStatus } from '@/lib/whitelist';
-import { updateUserWhitelist, getUser } from '@/lib/supabase';
+import { updateUserWhitelist, getUser, updateUser } from '@/lib/supabase';
 
 // Check if user has enabled notifications (from database tracking)
 async function hasEnabledNotifications(address: string): Promise<boolean> {
@@ -35,6 +35,12 @@ export async function GET(
     // Check if user has added mini app from database (tracked separately)
     const user = await getUser(address);
     const hasAddedMiniAppFromDb = user?.has_added_miniapp || false;
+    
+    // If we found FID and user doesn't have it saved, update database
+    if (status.fid && user && !user.fid) {
+      console.log(`[Whitelist API] Saving FID ${status.fid} to database for ${address}`);
+      await updateUser(address, { fid: status.fid });
+    }
     
     // Combine API check with database check
     const hasAddedMiniApp = status.hasAddedMiniApp || hasAddedMiniAppFromDb;
