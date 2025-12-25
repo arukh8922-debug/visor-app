@@ -1,22 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAccount } from 'wagmi';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
-import { useMiniAppContext } from '@/components/providers';
 
 // Admin FIDs that can access this page
 const ADMIN_FIDS = [250704, 1043335];
 
 export default function AdminNotificationsPage() {
-  const { context } = useMiniAppContext();
+  const { address, isConnected } = useAccount();
   const { showToast } = useToast();
   
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [userFid, setUserFid] = useState<number | null>(null);
   
   // Form state
   const [title, setTitle] = useState('');
@@ -27,14 +28,32 @@ export default function AdminNotificationsPage() {
   const [multiFids, setMultiFids] = useState('');
   const [apiKey, setApiKey] = useState('');
 
-  // Check if user is admin
+  // Check if user is admin by fetching FID from address
   useEffect(() => {
-    const userFid = context?.user?.fid;
-    if (userFid && ADMIN_FIDS.includes(userFid)) {
-      setIsAdmin(true);
+    async function checkAdmin() {
+      if (!address) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/farcaster/user?address=${address}`);
+        if (res.ok) {
+          const data = await res.json();
+          const fid = data.user?.fid;
+          setUserFid(fid);
+          if (fid && ADMIN_FIDS.includes(fid)) {
+            setIsAdmin(true);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check admin status:', error);
+      }
+      setLoading(false);
     }
-    setLoading(false);
-  }, [context]);
+    
+    checkAdmin();
+  }, [address]);
 
   const handleSend = async () => {
     if (!title || !body || !targetUrl) {
@@ -113,6 +132,17 @@ export default function AdminNotificationsPage() {
     );
   }
 
+  if (!isConnected || !address) {
+    return (
+      <div className="p-4">
+        <Card variant="default" className="text-center py-12">
+          <p className="text-2xl mb-2">🔗</p>
+          <p className="text-[#a0a0a0]">Connect your wallet to access admin panel</p>
+        </Card>
+      </div>
+    );
+  }
+
   if (!isAdmin) {
     return (
       <div className="p-4">
@@ -122,6 +152,9 @@ export default function AdminNotificationsPage() {
           <p className="text-xs text-[#666666] mt-2">
             Only FID {ADMIN_FIDS.join(' and ')} can access this page
           </p>
+          {userFid && (
+            <p className="text-xs text-[#444444] mt-1">Your FID: {userFid}</p>
+          )}
         </Card>
       </div>
     );
