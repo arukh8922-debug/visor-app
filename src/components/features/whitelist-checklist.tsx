@@ -23,6 +23,7 @@ interface WhitelistChecklistProps {
     follows_creator2: boolean;
     has_casted: boolean;
     has_added_miniapp: boolean;
+    has_notifications: boolean;
     is_whitelisted: boolean;
   };
   onRefresh: () => void;
@@ -191,6 +192,15 @@ export function WhitelistChecklist({ status, onRefresh, loading }: WhitelistChec
       actionLabel: addingMiniApp ? 'Adding...' : 'Add App',
       loading: addingMiniApp,
       icon: '📱',
+    },
+    {
+      id: 'notifications',
+      label: 'Enable Notifications',
+      completed: status?.has_notifications || false,
+      action: handleAddMiniApp, // Same action - adding mini app enables notifications in Warpcast
+      actionLabel: 'Enable',
+      loading: false,
+      icon: '🔔',
     },
     {
       id: 'follow1',

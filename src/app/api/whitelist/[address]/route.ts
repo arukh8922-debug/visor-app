@@ -1,6 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkWhitelistStatus } from '@/lib/whitelist';
 import { updateUserWhitelist, getUser } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+
+// Check if user has enabled notifications (has token in database)
+async function hasEnabledNotifications(fid: number | undefined): Promise<boolean> {
+  if (!fid) return false;
+  
+  const { data, error } = await supabase
+    .from('notification_tokens')
+    .select('id')
+    .eq('fid', fid)
+    .eq('enabled', true)
+    .limit(1);
+  
+  if (error) {
+    console.error('Failed to check notification status:', error);
+    return false;
+  }
+  
+  return (data?.length || 0) > 0;
+}
 
 export async function GET(
   request: NextRequest,
@@ -24,10 +44,13 @@ export async function GET(
     
     // Combine API check with database check
     const hasAddedMiniApp = status.hasAddedMiniApp || hasAddedMiniAppFromDb;
+    
+    // Check if user has enabled notifications
+    const hasNotifications = await hasEnabledNotifications(status.fid);
 
     // Update user whitelist status in database
-    // Now requires all 4 conditions: follow1, follow2, cast, and mini app
-    const isWhitelisted = status.followsCreator1 && status.followsCreator2 && status.hasCasted && hasAddedMiniApp;
+    // Now requires all 5 conditions: follow1, follow2, cast, mini app, and notifications
+    const isWhitelisted = status.followsCreator1 && status.followsCreator2 && status.hasCasted && hasAddedMiniApp && hasNotifications;
     if (isWhitelisted) {
       try {
         await updateUserWhitelist(address, true);
@@ -41,6 +64,7 @@ export async function GET(
       follows_creator2: status.followsCreator2,
       has_casted: status.hasCasted,
       has_added_miniapp: hasAddedMiniApp,
+      has_notifications: hasNotifications,
       is_whitelisted: isWhitelisted,
       fid: status.fid,
     });
