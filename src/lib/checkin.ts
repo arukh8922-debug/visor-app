@@ -3,7 +3,7 @@
  * Dynamic pricing: $0.04 USD converted to ETH at current market rate
  */
 
-import { createPublicClient, http, encodeFunctionData, parseEther, type Hash } from 'viem';
+import { createPublicClient, http, encodeFunctionData, type Hash } from 'viem';
 import { base } from 'viem/chains';
 import { detectPlatform, getPlatformShortName, type Platform } from './platform';
 
@@ -36,40 +36,42 @@ const publicClient = createPublicClient({
   transport: http(),
 });
 
-// Cache ETH price for 5 minutes
+// Cache ETH price for 1 minute (client-side)
 let cachedEthPrice: { price: number; timestamp: number } | null = null;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 60 * 1000; // 1 minute
 
 /**
- * Fetch current ETH price in USD from CoinGecko
+ * Fetch current ETH price in USD via our API route
+ * This avoids CORS issues and uses server-side caching
  */
 export async function getEthPriceUSD(): Promise<number> {
-  // Return cached price if still valid
+  // Return cached price if still valid (client-side cache)
   if (cachedEthPrice && Date.now() - cachedEthPrice.timestamp < CACHE_DURATION) {
+    console.log('[Checkin] Using cached ETH price:', cachedEthPrice.price);
     return cachedEthPrice.price;
   }
   
   try {
-    const response = await fetch(
-      'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd',
-      { next: { revalidate: 300 } } // Cache for 5 minutes
-    );
+    // Use our API route to avoid CORS and leverage server-side caching
+    const response = await fetch('/api/eth-price');
     
     if (!response.ok) {
-      throw new Error('Failed to fetch ETH price');
+      throw new Error(`ETH price API error: ${response.status}`);
     }
     
     const data = await response.json();
-    const price = data.ethereum.usd;
+    const price = data.price;
     
-    // Cache the price
+    console.log('[Checkin] Fetched ETH price:', price, 'cached:', data.cached);
+    
+    // Cache the price client-side
     cachedEthPrice = { price, timestamp: Date.now() };
     
     return price;
   } catch (error) {
-    console.error('Failed to fetch ETH price:', error);
+    console.error('[Checkin] Failed to fetch ETH price:', error);
     // Fallback to a reasonable default if API fails
-    return 3000; // $3000 as fallback
+    return 3500; // $3500 as fallback (more accurate current price)
   }
 }
 
@@ -84,6 +86,14 @@ export async function getCheckinFeeWei(): Promise<bigint> {
   // Convert to wei (18 decimals) with some precision
   // Round up to ensure we meet minimum
   const weiAmount = Math.ceil(ethAmount * 1e18);
+  
+  console.log('[Checkin] Fee calculation:', {
+    targetUSD: CHECKIN_FEE_USD,
+    ethPrice,
+    ethAmount,
+    weiAmount,
+    ethFormatted: (weiAmount / 1e18).toFixed(8)
+  });
   
   return BigInt(weiAmount);
 }
@@ -129,6 +139,13 @@ export async function sendCheckinTransaction(
   // Get dynamic fee based on current ETH price
   const feeWei = await getCheckinFeeWei();
   
+  console.log('[Checkin] Sending transaction:', {
+    contract: CHECKIN_CONTRACT_ADDRESS,
+    feeWei: feeWei.toString(),
+    feeETH: (Number(feeWei) / 1e18).toFixed(8),
+    platform
+  });
+  
   // Encode checkin() function call
   const data = encodeFunctionData({
     abi: CHECKIN_ABI,
@@ -141,6 +158,8 @@ export async function sendCheckinTransaction(
     value: feeWei,
     data,
   });
+  
+  console.log('[Checkin] Transaction sent:', txHash);
   
   return { txHash, platform };
 }
