@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 
-// Admin FIDs that can access this page
-const ADMIN_FIDS = [250704, 1043335];
+// Admin FID that can access this page
+const ADMIN_FID = 250704;
 
 export default function AdminNotificationsPage() {
   const { address, isConnected } = useAccount();
@@ -42,7 +42,7 @@ export default function AdminNotificationsPage() {
           const data = await res.json();
           const fid = data.user?.fid;
           setUserFid(fid);
-          if (fid && ADMIN_FIDS.includes(fid)) {
+          if (fid && fid === ADMIN_FID) {
             setIsAdmin(true);
           }
         }
@@ -150,7 +150,7 @@ export default function AdminNotificationsPage() {
           <p className="text-2xl mb-2">🔒</p>
           <p className="text-[#a0a0a0]">Admin access required</p>
           <p className="text-xs text-[#666666] mt-2">
-            Only FID {ADMIN_FIDS.join(' and ')} can access this page
+            Only FID {ADMIN_FID} can access this page
           </p>
           {userFid && (
             <p className="text-xs text-[#444444] mt-1">Your FID: {userFid}</p>
