@@ -27,7 +27,7 @@ export function ReferralShare({
   loading,
 }: ReferralShareProps) {
   const [copied, setCopied] = useState(false);
-  // Use username if available, otherwise fallback to address
+  // Use username if available for cleaner referral links, otherwise fallback to address
   const referralLink = getReferralLink(username || address);
 
   const handleCopy = async () => {

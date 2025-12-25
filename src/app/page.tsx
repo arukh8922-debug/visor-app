@@ -15,10 +15,11 @@ export default function HomePage() {
   const { user, rank, isLoading: userLoading, register, isRegistering } = useUser();
   const { status: whitelistStatus, isLoading: whitelistLoading, refetch: refetchWhitelist } = useWhitelist();
 
-  // Handle referral from URL
+  // Handle referral from URL - store any ref value (username or address)
   useEffect(() => {
     const ref = searchParams.get('ref');
-    if (ref && ref !== address?.toLowerCase()) {
+    // Store referrer (can be username or address), will be resolved in backend
+    if (ref && ref.toLowerCase() !== address?.toLowerCase()) {
       storeReferrer(ref);
     }
   }, [searchParams, address]);

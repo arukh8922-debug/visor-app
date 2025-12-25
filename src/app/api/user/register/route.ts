@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrCreateUser, processReferral } from '@/lib/supabase';
+import { getOrCreateUser, processReferral, supabase } from '@/lib/supabase';
 import { validateBody, registerUserSchema } from '@/lib/validation';
 import { rateLimitMiddleware } from '@/lib/rate-limit';
 import { notifyNewReferral } from '@/lib/notifications';
+import { isValidAddress } from '@/lib/utils';
+import { getFarcasterUserByUsername } from '@/lib/farcaster';
 
 export async function POST(request: NextRequest) {
   // Rate limiting
@@ -28,17 +30,39 @@ export async function POST(request: NextRequest) {
     let referralProcessed = false;
     if (referrer && referrer !== wallet_address.toLowerCase()) {
       try {
-        const result = await processReferral(referrer, wallet_address);
-        referralProcessed = result.success;
+        // Resolve referrer to wallet address
+        let referrerWallet = referrer;
         
-        // Send notification to referrer
-        if (result.success && result.pointsAwarded > 0) {
-          // Get referrer's FID for notification
-          const { data: referrerUser } = await import('@/lib/supabase').then(m => 
-            m.supabase.from('users').select('fid').eq('wallet_address', referrer.toLowerCase()).single()
-          );
-          if (referrerUser?.fid) {
-            notifyNewReferral(referrerUser.fid, result.pointsAwarded).catch(console.error);
+        if (!isValidAddress(referrer)) {
+          // Referrer is a username, lookup wallet address from Farcaster
+          console.log('[Register] Referrer is username, looking up wallet:', referrer);
+          const { walletAddress } = await getFarcasterUserByUsername(referrer);
+          
+          if (walletAddress) {
+            referrerWallet = walletAddress;
+            console.log('[Register] Resolved username to wallet:', referrerWallet);
+          } else {
+            console.log('[Register] Could not resolve username to wallet, skipping referral');
+            referrerWallet = '';
+          }
+        }
+        
+        if (referrerWallet && referrerWallet.toLowerCase() !== wallet_address.toLowerCase()) {
+          const result = await processReferral(referrerWallet, wallet_address);
+          referralProcessed = result.success;
+          console.log('[Register] Referral processed:', { referrerWallet, success: result.success, points: result.pointsAwarded });
+          
+          // Send notification to referrer
+          if (result.success && result.pointsAwarded > 0) {
+            // Get referrer's FID for notification
+            const { data: referrerUser } = await supabase
+              .from('users')
+              .select('fid')
+              .eq('wallet_address', referrerWallet.toLowerCase())
+              .single();
+            if (referrerUser?.fid) {
+              notifyNewReferral(referrerUser.fid, result.pointsAwarded).catch(console.error);
+            }
           }
         }
       } catch (error) {

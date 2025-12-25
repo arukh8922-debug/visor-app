@@ -22,7 +22,15 @@ export async function GET(
       );
     }
 
+    console.log(`[Whitelist API] Checking status for address: ${address}`);
     const status = await checkWhitelistStatus(address);
+    console.log(`[Whitelist API] Status result:`, {
+      fid: status.fid,
+      followsCreator1: status.followsCreator1,
+      followsCreator2: status.followsCreator2,
+      hasCasted: status.hasCasted,
+      hasAddedMiniApp: status.hasAddedMiniApp,
+    });
 
     // Check if user has added mini app from database (tracked separately)
     const user = await getUser(address);
@@ -37,6 +45,14 @@ export async function GET(
     // Update user whitelist status in database
     // Now requires all 5 conditions: follow1, follow2, cast, mini app, and notifications
     const isWhitelisted = status.followsCreator1 && status.followsCreator2 && status.hasCasted && hasAddedMiniApp && hasNotifications;
+    
+    console.log(`[Whitelist API] Final status for ${address}:`, {
+      hasCasted: status.hasCasted,
+      hasAddedMiniApp,
+      hasNotifications,
+      isWhitelisted,
+    });
+
     if (isWhitelisted) {
       try {
         await updateUserWhitelist(address, true);

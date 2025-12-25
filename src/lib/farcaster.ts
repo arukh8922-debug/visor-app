@@ -203,3 +203,61 @@ export async function getFarcasterUserByFid(
     return null;
   }
 }
+
+
+/**
+ * Get Farcaster user by username using Neynar API
+ * Returns user with their verified wallet addresses
+ */
+export async function getFarcasterUserByUsername(
+  username: string
+): Promise<{ user: FarcasterUser | null; walletAddress: string | null }> {
+  try {
+    const response = await fetch(
+      `${NEYNAR_API_URL}/user/by_username?username=${username}`,
+      {
+        headers: {
+          'accept': 'application/json',
+          'x-api-key': NEYNAR_API_KEY,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.log(`[Farcaster] User not found for username: ${username}`);
+      return { user: null, walletAddress: null };
+    }
+
+    const data = await response.json();
+    const neynarUser = data.user;
+
+    if (!neynarUser) {
+      return { user: null, walletAddress: null };
+    }
+
+    const user: FarcasterUser = {
+      fid: neynarUser.fid,
+      username: neynarUser.username || '',
+      displayName: neynarUser.display_name || neynarUser.username || '',
+      pfpUrl: neynarUser.pfp_url || '',
+    };
+
+    // Get verified wallet address (custody or verified_addresses)
+    let walletAddress: string | null = null;
+    
+    // First try verified_addresses (connected wallets)
+    if (neynarUser.verified_addresses?.eth_addresses?.length > 0) {
+      walletAddress = neynarUser.verified_addresses.eth_addresses[0];
+    }
+    // Fallback to custody address
+    else if (neynarUser.custody_address) {
+      walletAddress = neynarUser.custody_address;
+    }
+
+    console.log(`[Farcaster] Found user ${username} with wallet: ${walletAddress}`);
+    return { user, walletAddress };
+  } catch (error) {
+    console.error('Failed to fetch Farcaster user by username:', error);
+    return { user: null, walletAddress: null };
+  }
+}
